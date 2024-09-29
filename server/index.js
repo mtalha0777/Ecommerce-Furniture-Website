@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 // Models
 const eappmodel = require('./model/eapp');
 const Bed = require('./model/bed');
@@ -11,7 +12,10 @@ const Order = require('./model/Order');
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+    origin: 'http://localhost:3000',
+    credentials: true
+}));
 
 // MongoDB connection
 mongoose.connect("mongodb://127.0.0.1:27017/eapp", { useNewUrlParser: true, useUnifiedTopology: true });
@@ -221,6 +225,21 @@ app.post('/api/orders', (req, res) => {
             console.error('Error creating order:', err);
             res.status(500).json({ error: 'Failed to create order' });
         });
+});
+app.post('/create-payment-intent', async (req, res) => {
+    try {
+        const { amount } = req.body;
+        console.log('Received amount:', amount);
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount,
+            currency: 'usd',
+        });
+        console.log('Payment Intent created:', paymentIntent.id);
+        res.send({ clientSecret: paymentIntent.client_secret });
+    } catch (err) {
+        console.error('Error creating payment intent:', err);
+        res.status(500).send({ error: err.message });
+    }
 });
 
 // Server setup

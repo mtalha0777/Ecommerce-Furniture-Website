@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as  Router,Route,Routes } from 'react-router-dom'; 
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import Bed from './components/bedpage/bed';
 import Sofa from './components/bedpage/sofa';
 import Table from './components/bedpage/table';
@@ -9,25 +9,26 @@ import Del from './login-signup/delete';
 import Home from './home/home';
 import Cart from './components/cart';
 import AboutPage from './components/footer/AboutPage';
+import PaymentMethods from './components/PaymentMethod/PaymentMethod';
 
 function App() {
   return (
-   
- 
-<Routes>
-<Route exact path="/" element={<Login/>}/>
-<Route path="/home" element={<Home/>}/>
-<Route path="/signup" element={<Signup/>}/>
-<Route path="/bed" element={<Bed/>}/>
-<Route path="/sofa" element={<Sofa/>}/>
-<Route path="/table" element={<Table/>}/>
-<Route path="/delete" element={<Del/>}/>
-<Route path="/cart" element={<Cart />} />
-<Route path="/AboutPage" element={<AboutPage />} />
 
-</Routes>
 
-   
+    <Routes>
+      <Route exact path="/" element={<Login />} />
+      <Route path="/home" element={<Home />} />
+      <Route path="/signup" element={<Signup />} />
+      <Route path="/bed" element={<Bed />} />
+      <Route path="/sofa" element={<Sofa />} />
+      <Route path="/table" element={<Table />} />
+      <Route path="/delete" element={<Del />} />
+      <Route path="/cart" element={<Cart />} />
+      <Route path="/AboutPage" element={<AboutPage />} />
+      <Route path="/paymentMethod" element={<PaymentMethods amount={10} />} />
+    </Routes>
+
+
   );
 }
 
