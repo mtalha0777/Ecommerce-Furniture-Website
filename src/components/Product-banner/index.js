@@ -35,10 +35,10 @@ const Banner1 = () => {
                 <div className='row'>
                     <div className='col'>
                         <div className='box'>
-                        <h3 style={{textAlign:'center'}}>Beds</h3>
+                            <h3 style={{ textAlign: 'center' }}>Beds</h3>
                             <img src={images[currentImageIndex]} className='w-100 transition' />
-                            <Link to='/bed' className='btn btn-default border w-100 bg-info rounded-0 text-decoration-none'style={{boxShadow:' 0 8px 16px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19)'}}>Vist Page</Link>
-           
+                            <Link to='/bed' className='btn btn-default border w-100 bg-info rounded-0 text-decoration-none' style={{ boxShadow: ' 0 8px 16px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19)' }}>Vist Page</Link>
+
                         </div>
                     </div>
                 </div>
@@ -65,10 +65,10 @@ const Banner2 = () => {
                 <div className='row'>
                     <div className='col'>
                         <div className='box'>
-                            <h3 style={{textAlign:'center'}}>Sofas</h3>
+                            <h3 style={{ textAlign: 'center' }}>Sofas</h3>
                             <img src={images[currentImageIndex]} className='w-100 transition' />
-                            <Link to='/sofa' className='btn btn-default border w-100 bg-info rounded-0 text-decoration-none'style={{boxShadow:' 0 8px 16px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19)'}}>Vist Page</Link>
-           
+                            <Link to='/sofa' className='btn btn-default border w-100 bg-info rounded-0 text-decoration-none' style={{ boxShadow: ' 0 8px 16px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19)' }}>Vist Page</Link>
+
                         </div>
                     </div>
                 </div>
@@ -95,11 +95,11 @@ const Banner3 = () => {
                 <div className='row'>
                     <div className='col'>
                         <div className='box'>
-                        <h3 style={{textAlign:'center'}}>Chairs & Tables</h3>
+                            <h3 style={{ textAlign: 'center' }}>Chairs & Tables</h3>
                             <img src={images[currentImageIndex]} className='w-100 transition' />
 
-                            <Link to='/table' className='btn btn-default border w-100 bg-info rounded-0 text-decoration-none'style={{boxShadow:' 0 8px 16px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19)'}}>Vist Page</Link>
-           
+                            <Link to='/table' className='btn btn-default border w-100 bg-info rounded-0 text-decoration-none' style={{ boxShadow: ' 0 8px 16px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19)' }}>Vist Page</Link>
+
                         </div>
                     </div>
                 </div>
