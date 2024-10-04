@@ -19,6 +19,7 @@ const Header = () => {
     const [account] = useState([
         'My Account',
         'Profile',
+        "Payment Methods",
         'Change Password',
         'Settings',
         'Log Out',
@@ -77,6 +78,9 @@ const Header = () => {
                 break;
             case 'Settings':
                 navigate('/settings');
+                break;
+            case "Payment Methods":
+                navigate('/paymentMethod');
                 break;
             case 'Log Out':
                 try {
@@ -162,13 +166,13 @@ const Header = () => {
                         <ul className='list list-inline mb-0 headerTabs'>
                             <li className='list inline-item'>
                                 <span>
-                                    
+
                                     {cartItems > 0 && (
                                         <span className='badge bg-success rounded-circle'>{cartItems}</span>
                                     )}
                                     <Link to="/cart" style={{ textDecoration: 'none', color: 'inherit' }}>
-                                    <ShoppingBag style={{ fontSize: '30px' }} />
-                                     Cart
+                                        <ShoppingBag style={{ fontSize: '30px' }} />
+                                        Cart
                                     </Link>
                                 </span>
                             </li>
