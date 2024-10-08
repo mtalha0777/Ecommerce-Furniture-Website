@@ -6,7 +6,9 @@ const  eappschema = new mongoose.Schema({
 
         name:String,
         email:String,
-        password:String
+        password:String,
+        role:String,
+        firstLogin:Boolean,
 
 
 

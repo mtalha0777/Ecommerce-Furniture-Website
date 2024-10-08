@@ -1,158 +1,139 @@
 header {
-    width: 100%;
-    height: auto;
-    margin: auto;
-
-    padding: 20px 0;
-    background: lightgoldenrodyellow;
+    background: linear-gradient(to right, #FFF3E0, #FFE0B2);
+    padding: 15px 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-
-
-header .headerSearch {
-    width: 600px;
+.left-aligned-image {
+    width: 50px;
     height: 50px;
-    border: 1px solid black;
-    padding: 25px 20px;
-    margin-top: 110px;
+    margin-right: 10px;
     cursor: pointer;
-    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.1);
-
 }
 
+h3 {
+    color: #5D4037;
+    margin: 0;
+    font-size: 1.5rem;
+}
 
-
-header .headerSearch .selecDropWrapper {
-    width: 30%;
-    font-size: 16px;
-    font-weight: 500;
+.headerSearch .search {
     position: relative;
-
+    flex-grow: 1;
 }
 
-header .headerSearch .selecDropWrapper:after {
-    content: '';
-    width: 1px;
-    height: 30px;
-    background: rgba(0, 0, 0, 0.2);
-    position: absolute;
-    top: 0px;
-    right: 0;
-}
-
-header .headerSearch .search {
-    width: calc(100% - 30px);
-    position: relative;
-}
-
-header .headerSearch .search input {
-    width: 90%;
-    height: 100%;
-    border: 0;
-    outline: none !important;
-    font-size: 18px;
-}
-
-header .headerSearch .search .searchIcon {
-    position: absolute;
-
-    transform: translateY(-50%);
-    opacity: 0.5;
-    font-size: 24px !important;
-    background-color: lightgoldenrodyellow;
-
-}
-
-
-Select {
-    color: #279a65 !important;
-}
-
-
-.headerTabs {
-    padding-left: 10px;
-    margin-top: 55px;
+.headerSearch input {
+    border: none;
+    outline: none;
     width: 100%;
+    padding: 10px;
+    padding-right: 40px; /* Make room for the icon */
+    font-size: 16px;
+}
+
+.searchIcon {
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: transparent;
+    color: #FFB300 !important;
+    border: none;
+    padding: 5px;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.searchIcon:hover {
+    color: #FFA000 !important;
+}
+
+.headerSearch .selecDrop {
+    border-right: 1px solid #e0e0e0;
+    padding-right: 10px;
+}
+
+.headerSearch .search {
+    flex-grow: 1;
+}
+
+.headerSearch input {
+    border: none;
+    outline: none;
+    width: 100%;
+    padding: 10px;
+    font-size: 16px;
+}
+
+.searchIcon {
+    background-color: #FFB300;
+    color: white !important;
+    border-radius: 50%;
+    padding: 10px;
+    margin-right: 5px;
 }
 
 .headerTabs li {
-    position: relative;
-    width: 100%;
-    border: 1px solid #ccc;
-    margin-left: 10px;
-    padding: 5px;
-    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.1);
+    margin-right: 20px;
 }
 
 .headerTabs li span {
-    font-size: 20px;
-
-    cursor: pointer;
-    text-decoration: none;
-}
-
-.headerTabs li span:hover {
-    text-decoration: none;
-}
-
-.headerTabs li span * {
-    color: #000;
-}
-
-.headerTabs li span img {
-    margin-right: 0px;
-}
-
-.headerTabs li span.badge {
-    width: 28px;
-    height: 28px;
-    color: #fff;
-    font-weight: 400;
-    position: absolute;
-    top: -16px;
-    left: 10px;
     display: flex;
     align-items: center;
-    justify-content: center;
-    font-size: 12px !important;
+    color: #5D4037;
+    font-weight: 500;
 }
 
+.headerTabs .badge {
+    background-color: #FFB300;
+    color: white;
+    margin-left: 5px;
+}
 
+.profile-image {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid #FFB300;
+}
 
-
-.dropdownMenu {
+.dropdown-menu {
+    background-color: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     position: absolute;
-    top: 40px;
-    right: 0px;
-    width: 200px;
-    height: auto;
-    background: #fff;
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
-    padding: 10px 0px;
-    z-index: 100;
+    right: 10px;
 }
 
-.dropdownMenu li {
-    width: 100% !important;
-    list-style: none;
-    margin: 0px !important;
+.dropdown-item {
+    color: #5D4037;
+    padding: 10px 15px;
+    background: linear-gradient(to right, #FFF3E0, #FFE0B2)
 }
 
-.dropdownMenu li button {
-    width: 100% !important;
-    text-align: left !important;
-    justify-content: flex-start !important;
-    color: rgba(0, 0, 0, 0.7) !important;
-    text-transform: capitalize !important;
-    font-size: 18px !important;
-    padding: 12px 15px !important;
+.dropdown-item:hover {
+    background-color: #FFF3E0;
 }
 
-.dropdownMenu li button svg {
-    opacity: 0.7;
-    margin-right: 8px !important;
+.wishlist-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background-color: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 1000;
+    min-width: 200px;
+    padding: 10px 0;
 }
 
-.dropdownMenu li button:hover {
-    background: #f1f1f1 !important;
+.wishlist-dropdown li {
+    padding: 5px 15px;
+    color: #5D4037;
+}
+
+.wishlist-dropdown li:hover {
+    background-color: #FFF3E0;
 }
