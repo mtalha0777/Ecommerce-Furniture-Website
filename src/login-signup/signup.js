@@ -13,6 +13,7 @@ function Signup() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [errors, setErrors] = useState({});
+    const [role, setRole] = useState('User');
     const navigate = useNavigate(); 
 
     const validate = () => {
@@ -45,7 +46,9 @@ function Signup() {
         if (Object.keys(validationErrors).length > 0) {
             setErrors(validationErrors);
         } else {
-            axios.post('http://localhost:3001/register', { name, email, password })
+            const roleValue = role === "User" ? 1 : 2;
+
+            axios.post('http://localhost:3001/register', { name, email, password, role: roleValue })
                 .then(result => {
                     console.log(result);
                     navigate('/');
@@ -60,7 +63,7 @@ function Signup() {
     return (
         <div className='d-flex justify-content-center align-items-center bg-secondary vh-100' style={{ backgroundSize: 'cover', backgroundImage: `url(${signup})`, backgroundRepeat: 'no-repeat'}}>
             <div className='bg-white p-3 rounded w-25'>
-                <img src={images1} alt="Image" style={{width:'100%', position:'relative'}} />
+                <img src={images1} alt="" style={{width:'100%', position:'relative'}} />
                 <h2>Register</h2>
                 <form onSubmit={handleSubmit}>
                     <div className='mb-3'>
@@ -98,6 +101,19 @@ function Signup() {
                             onChange={(e) => setPassword(e.target.value)} 
                         />
                         {errors.password && <div className="text-danger">{errors.password}</div>}
+                    </div>
+                    <div className='mb-3'>
+                        <label htmlFor='role'><strong>Role</strong></label>
+                        <select 
+                            name='role' 
+                            className='form-control rounded-0' 
+                            value={role} 
+                            onChange={(e) => setRole(e.target.value)}
+                        >
+                            <option value="User">User</option>
+                            <option value="Seller">Seller</option>
+                        </select>
+                        {errors.role && <div className="text-danger">{errors.role}</div>}
                     </div>
                     {errors.submit && <div className="text-danger">{errors.submit}</div>}
                     <button type='submit' className='btn btn-default border w-100 bg-success rounded-0' style={{ boxShadow:' 0 8px 16px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19)'}}>Register</button>

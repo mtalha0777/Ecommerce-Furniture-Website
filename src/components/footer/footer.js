@@ -2,7 +2,7 @@ import React from 'react';
 import './footer.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { Link } from 'react-router-dom';
-import { HashLink } from 'react-router-hash-link'; // Import HashLink
+import { HashLink } from 'react-router-hash-link';
 import Icon1 from '../../assets/images/icon-1.svg';
 import Icon2 from '../../assets/images/icon-2.svg';
 import Icon3 from '../../assets/images/icon-3.svg';
@@ -38,59 +38,15 @@ const Footer = () => {
             </section>
 
             <div className='footerWrapper'>
-                <div className='footerBoxes'>
-                    <div className='container-fluid'>
-                        <div className='row'>
-                            <div className='col'>
-                                <div className='box d-flex align-items-center w-100'>
-                                    <span><img src={Icon1} alt="Best Price & Offers" /></span>
-                                    <div className='info'>
-                                        <h4>Best Offers</h4>
-                                        <p>Orders Rs:50k or more</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className='col'>
-                                <div className='box d-flex align-items-center w-100'>
-                                    <span><img src={Icon2} alt="Fast Delivery" /></span>
-                                    <div className='info'>
-                                        <h4>Fast Delivery</h4>
-                                        <p>Orders Rs:50k or more</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className='col'>
-                                <div className='box d-flex align-items-center w-100'>
-                                    <span><img src={Icon3} alt="Great Daily Deal" /></span>
-                                    <div className='info'>
-                                        <h4>Great Daily Deals</h4>
-                                        <p>Orders Rs:50k or more</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className='col'>
-                                <div className='box d-flex align-items-center w-100'>
-                                    <span><img src={Icon5} alt="Easy Returns" /></span>
-                                    <div className='info'>
-                                        <h4>Easy Returns</h4>
-                                        <p>Orders Rs:50k or more</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 <footer>
                     <div className='container-fluid'>
                         <div className='row'>
+                            {/* Footer content */}
                             <div className='col-md-3 part1'>
                                 <Link to='/'><img src={logo} alt="AR Furniture Logo" /></Link>
                                 <br /><br />
-                                <p><LocationOnOutlinedIcon /> <strong>Address</strong>: Chiniot, Pakistan</p>
+                                <p><LocationOnOutlinedIcon /> <strong>Address:</strong> Chiniot, Pakistan</p>
                                 <p><HeadphonesOutlinedIcon /> <strong>Call Us:</strong> (+92) -3221796734</p>
                                 <p><EmailOutlinedIcon /> <strong>Email:</strong> anasjavaid102@gmail.com</p>
                                 <p><WatchLaterOutlinedIcon /> <strong>Hours:</strong> 10:00 - 18:00, Mon - Sat</p>
@@ -98,9 +54,10 @@ const Footer = () => {
 
                             <div className='col-md-6 part2'>
                                 <div className='row'>
+                                    {/* Links */}
                                     <div className='col'>
-                                        <h3>Company</h3>
-                                        <ul className="footer-list">
+                                        <h3 style={{ marginBottom: '15px', marginRight:'77%' }}>Company</h3>
+                                        <ul className="footer-list" style={{ paddingLeft: '0', listStyle: 'none' }}>
                                             <li><HashLink smooth to="/AboutPage#company-info">About Us</HashLink></li>
                                             <li><HashLink smooth to="/AboutPage#delivery-info">Delivery Information</HashLink></li>
                                             <li><HashLink smooth to="/AboutPage#privacy-policy">Privacy Policy</HashLink></li>
@@ -111,8 +68,8 @@ const Footer = () => {
                                     </div>
 
                                     <div className='col'>
-                                        <h3>Information Area</h3>
-                                        <ul className="footer-list">
+                                        <h3 style={{ marginBottom: '15px', marginRight:'57%' }}>Information Area</h3>
+                                        <ul className="footer-list" style={{ paddingLeft: '0', listStyle: 'none' }}>
                                             <li><HashLink smooth to="/AboutPage#shipping-info">Shipping Policy</HashLink></li>
                                             <li><HashLink smooth to="/AboutPage#privacy-policy">Privacy Policy</HashLink></li>
                                             <li><HashLink smooth to="/AboutPage#return-policy">Return Policy</HashLink></li>
@@ -121,6 +78,7 @@ const Footer = () => {
                                     </div>
                                 </div>
                             </div>
+
 
                             <div className='col-md-3 part3'>
                                 <h3>Payment Method</h3>
@@ -176,3 +134,4 @@ const Footer = () => {
 }
 
 export default Footer;
+

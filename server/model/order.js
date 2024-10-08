@@ -10,7 +10,7 @@ const OrderSchema = new mongoose.Schema({
         {
             name: { type: String, required: true },
             price: { type: Number, required: true },
-            quantity: { type: Number, required: true }
+            quantity: { type: Number, required: false }
         }
     ],
     totalAmount: { type: Number, required: true },
@@ -18,4 +18,4 @@ const OrderSchema = new mongoose.Schema({
     grandTotal: { type: Number, required: true },
 }, { timestamps: true });
 
-module.exports = mongoose.model('Order', OrderSchema);
+module.exports = mongoose.model('order', OrderSchema);

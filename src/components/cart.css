@@ -1,153 +1,125 @@
-/* General styles for the Cart page */
-.Cart {
-    font-family: Arial, sans-serif;
-    padding: 20px;
-    max-width: 1200px;
-    margin: 0 auto;
+/* General Layout */
+body {
+    font-family: 'Nunito', sans-serif; /* Modern, clean font */
+    background-color: #f8f5f2; /* Light beige background for the entire page */
+    color: #5a3e36; /* Warm brown text color */
 }
 
-/* Style for the Cart heading */
-h2 {
-    text-align: center;
-    margin-bottom: 20px;
-    padding: 10px;
-    border-bottom: 2px solid #007bff; 
-    font-size: 28px;
-    font-weight: bold;
-    color: #007bff;
-}
-
-/* Footer styles */
-footer {
-    margin-top: 20px;
-    text-align: center;
-}
-
-footer a {
-    text-decoration: none;
-    color: #007bff;
-    font-size: 16px;
-}
-
-footer a:hover {
-    text-decoration: underline;
-}
-
-/* Style for the cart items container */
-.cart-items-container {
-    background-color: #f9f9f9;
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.1);
-    max-height: 400px; /* Reduced container height */
-    overflow-y: auto; /* Enable scroll if content overflows */
-}
-
-/* Style for the cart items list */
-.cart-items {
-    border-collapse: collapse;
-    width: 100%;
-}
-
-.cart-items th, .cart-items td {
-    padding: 10px;
-    text-align: left;
-    border-bottom: 1px solid #ddd;
-    font-size: 16px;
-}
-
-.cart-items th {
-    background-color: #007bff;
-    color: white;
-    font-weight: bold;
-    text-transform: uppercase;
-}
-
-.cart-items td img {
-    max-width: 80px;
-    height: auto;
-    border-radius: 5px;
-}
-
-/* Style for remove button */
-.cart-items .item-remove {
-    color: #dc3545;
-    cursor: pointer;
-    font-weight: bold;
-}
-
-.cart-items .item-remove:hover {
-    text-decoration: underline;
-}
-
-/* Style for the total amount section */
-.total-amount {
-    text-align: right;
-    margin-top: 20px;
-    font-size: 18px;
-    font-weight: bold;
-}
-
-.total-amount span {
-    color: #007bff;
-}
-
-/* Cart Summary Card Styles */
+/* Card for Cart Items */
 .card {
+    border: none;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Soft shadow for a clean modern look */
+    background-color: #ffffff;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+.card h5 {
+    color: #5a3e36; /* Deep brown color for titles */
+    font-weight: bold;
+}
+
+.card-text {
+    font-size: 1rem;
+    color: #6d4c41; /* Medium brown for product details */
+}
+
+.img-fluid {
+    border-radius: 0.5rem; /* Soft image corners */
+}
+
+/* Cart Summary and Shipping Details */
+.card.p-3 {
+    background-color: #fff5e1; /* Soft yellowish background for the summary section */
+    border: none;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+h4, h5 {
+    color: #d4943f; /* Warm yellowish-brown for headers */
+    font-weight: 700;
+}
+
+hr {
+    border-top: 2px solid #d4943f; /* Thin horizontal line matching the color scheme */
+}
+
+/* Buttons */
+.btn-primary {
+    background-color: #d4943f; /* Warm yellowish button */
+    border-color: #d4943f;
+    font-weight: bold;
+    padding: 0.6rem 1.5rem;
+    transition: background-color 0.3s ease;
+}
+
+.btn-primary:hover {
+    background-color: #b3792d; /* Darker yellow-brown on hover */
+    border-color: #b3792d;
+}
+
+.btn-danger {
+    background-color: #a94442; /* Classic Bootstrap red for the remove button */
+    border: none;
+    transition: background-color 0.3s ease;
+}
+
+.btn-danger:hover {
+    background-color: #a12d2a;
+}
+
+/* Form Styling */
+.form-label {
+    font-weight: bold;
+    color: #5a3e36; /* Dark brown labels */
+}
+
+.form-control {
+    border-radius: 0.5rem;
+    border: 1px solid #d4943f; /* Soft yellow border */
+}
+
+.form-control:focus {
+    box-shadow: none;
+    border-color: #b3792d; /* Slightly darker yellow on focus */
+}
+
+/* Alerts */
+.alert-danger {
+    background-color: #f8d7da;
+    color: #842029;
+    border-radius: 0.5rem;
+}
+
+/* Smaller cart item card */
+.cart-item-card {
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Reduced shadow for smaller card */
     background-color: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);
 }
 
-.card h4, .card h5 {
+/* Reduced image size */
+.cart-item-image {
+    max-height: 100px; /* Set a maximum height for the image */
+    object-fit: cover;
+}
+
+/* Reduced font sizes for a more compact design */
+.cart-item-title {
+    font-size: 1.1rem; /* Smaller font size */
+    color: #5a3e36; /* Dark brown for consistency */
     font-weight: bold;
-    margin-bottom: 20px;
-    color: #007bff;
 }
 
-.card p {
-    margin-bottom: 10px;
-    font-size: 16px;
-    color: #333;
+.card-text {
+    font-size: 0.9rem; /* Reduce text size */
+    margin-bottom: 0.25rem; /* Tighten spacing */
 }
 
-/* Button styles */
-button.btn-primary {
-    background-color: #007bff;
-    border-color: #007bff;
-    padding: 10px 20px;
-    font-size: 16px;
-    font-weight: bold;
-    border-radius: 5px;
-}
-
-button.btn-primary:hover {
-    background-color: #0056b3;
-    border-color: #0056b3;
-}
-
-/* Responsive design for smaller screens */
-@media (max-width: 768px) {
-    .cart-items td {
-        display: block;
-        width: 100%;
-        box-sizing: border-box;
-    }
-
-    .cart-items th {
-        display: none;
-    }
-
-    .cart-items td::before {
-        content: attr(data-label);
-        font-weight: bold;
-        display: block;
-        margin-bottom: 5px;
-    }
-
-    .total-amount {
-        font-size: 16px;
-    }
+/* Adjusted button size */
+.btn-sm {
+    padding: 0.25rem 0.75rem; /* Smaller padding for a compact button */
+    font-size: 0.8rem; /* Reduced font size */
 }

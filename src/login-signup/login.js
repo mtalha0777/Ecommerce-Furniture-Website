@@ -12,19 +12,28 @@ function Login() {
     const navigate = useNavigate();
 
 
-    axios.get('http://localhost:3001/check-auth')
-    .then(response => {
-        // Handle response
-    })
-    .catch(error => {
-        console.error('Error checking auth:', error);
-    });
+    // axios.get('http://localhost:3001/check-auth')
+    // .then(response => {
+    //     // Handle response
+    // })
+    // .catch(error => {
+    //     console.error('Error checking auth:', error);
+    // });
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
             const result = await axios.post('http://localhost:3001/logins', { email, password });
-            if (result.data === "Success") {
-                navigate('/home');
+            if (result.data.message === "Success") {
+                const userID = result.data.userID;
+                // Store userID in localStorage
+                localStorage.setItem('userID', userID);
+                localStorage.setItem('userRole', result.data.role);
+                if (result.data.role == 2 && result.data.loginStatus === true) {
+                    navigate('/shopdetails', { state: { userID } });
+                }
+                else{
+                    navigate('/home');
+                }
             } else {
                 setErrorMessage('Invalid email or password');
             }

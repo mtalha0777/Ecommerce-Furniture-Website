@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import UserCartComponent from './UserCartComponent';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './cart.css';
 
 function Cart() {
     const [cartItems, setCartItems] = useState([]);
+    const [refreshPage, setRefreshPage] = useState(true);
     const [formData, setFormData] = useState({
         name: '',
         address: '',
@@ -15,18 +15,44 @@ function Cart() {
     const [error, setError] = useState('');
 
     useEffect(() => {
-        const savedCart = JSON.parse(localStorage.getItem('cart')) || [];
-        setCartItems(savedCart);
-    }, []);
+        const userID = localStorage.getItem('userID'); // Assuming userID is stored in localStorage
 
-    const removeFromCart = (item) => {
-        const updatedCart = cartItems.filter(cartItem => cartItem.product._id !== item.product._id);
-        setCartItems(updatedCart);
-        localStorage.setItem('cart', JSON.stringify(updatedCart));
+        const fetchCartItems = async () => {
+            try {
+                const response = await fetch(`http://localhost:3001/cart/${userID}`);
+                const data = await response.json();
+                setCartItems(data.products); // Assuming 'products' contains the array of cart items
+            } catch (error) {
+                console.error("Error fetching cart items:", error);
+            }
+        };
+
+        fetchCartItems();
+    }, [refreshPage]);
+
+    const removeFromCart = async (productID) => {
+        try {
+            setRefreshPage(!refreshPage)
+            const userID = localStorage.getItem('userID');
+            const response = await fetch(`http://localhost:3001/cart/${userID}/remove/${productID}`, {
+                method: 'DELETE',
+            });
+            console.log(response);
+            if (response.ok) {
+                const updatedCart = cartItems.filter(cartItem => cartItem.productID !== productID);
+                setCartItems(updatedCart);
+                // fetchCartItems();
+            } else {
+                console.error('Failed to remove item from cart');
+            }
+        } catch (error) {
+            console.error("Error removing item from cart:", error);
+        }
     };
+    
 
     const calculateTotalAmount = () => {
-        return cartItems.reduce((total, item) => total + item.product.price * item.quantity, 0);
+        return cartItems?.reduce((total, item) => total + parseFloat(item.price), 0);
     };
 
     const handleFormChange = (e) => {
@@ -37,52 +63,60 @@ function Cart() {
         }));
     };
 
-    const handlePaymentMethodChange = (e) => {
-        const paymentMethod = e.target.value;
-        setFormData(prevData => ({
-            ...prevData,
-            paymentMethod,
-            phoneNumber: '', // Clear phone number when changing payment method
-        }));
-    };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
-
+    
         if (!formData.name || !formData.address || !formData.postalCode || !formData.phoneNumber) {
             setError('Please fill in all required fields.');
             return;
         }
-
+    
+        const userID = localStorage.getItem('userID'); // Ensure userID is retrieved correctly
         const orderDetails = {
             name: formData.name,
             address: formData.address,
             postalCode: formData.postalCode,
             phoneNumber: formData.phoneNumber,
             paymentMethod: formData.paymentMethod,
-            products: cartItems.map(item => ({
-                name: item.product.name,
-                price: item.product.price,
-                quantity: item.quantity,
+            products: cartItems?.map(item => ({
+                name: item.productName,
+                price: item.price,
             })),
             totalAmount: calculateTotalAmount(),
-            shippingCharges: 5, // Fixed shipping charge
-            grandTotal: calculateTotalAmount() + 5 // Total amount + shipping charges
+            shippingCharges: 5,
+            grandTotal: calculateTotalAmount() + 5,
         };
-
+    
         try {
-            const response = await fetch('http://localhost:3001/api/orders', {
+            // Sending the order details to the API
+            const response = await fetch('http://localhost:3001/orders', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(orderDetails),
             });
-
+    
             if (response.ok) {
                 console.log('Order successfully stored in the database');
+                
+                // Clear the user's cart after the order has been successfully placed
+                const clearCartResponse = await fetch('http://localhost:3001/clearcart', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ userID }), // Sending userID in the request body
+                });
+    
+                if (clearCartResponse.ok) {
+                    console.log('Cart cleared successfully.');
+                } else {
+                    console.error('Failed to clear the cart.');
+                }
+    
+                // Resetting the cart and form data
                 setCartItems([]);
-                localStorage.removeItem('cart');
                 setFormData({
                     name: '',
                     address: '',
@@ -91,7 +125,6 @@ function Cart() {
                     phoneNumber: '',
                 });
                 setError('');
-                redirectToPayment();
             } else {
                 setError('Failed to store the order.');
             }
@@ -99,42 +132,55 @@ function Cart() {
             setError('Error submitting the order.');
             console.error('Error:', error);
         }
-    };
+    
+        setRefreshPage(!refreshPage);
+    };    
+    
 
-    const redirectToPayment = () => {
-        if (formData.paymentMethod === 'easypaisa') {
-            window.location.href = 'https://www.easypaisa.com.pk/';
-        } else if (formData.paymentMethod === 'jazzcash') {
-            window.location.href = 'https://www.jazzcash.com.pk/';
-        }
-    };
-
-    const shippingCharges = 5;
+    const shippingCharges = 200;
 
     return (
         <div className="container mt-5">
-            <h2 className="mb-4" style={{ WebkitTextDecorationLine: 'underline' }}><strong>Your Cart</strong></h2>
+            <h2 className="mb-4"><strong>Your Cart</strong></h2>
             <div className="row">
                 <div className="col-md-8">
-                    <UserCartComponent
-                        cartCourses={cartItems}
-                        deleteCourseFromCartFunction={removeFromCart}
-                        totalAmountCalculationFunction={calculateTotalAmount}
-                        setCartCourses={setCartItems}
-                    />
+                    {cartItems == undefined ? (
+                        <p>Your cart is empty.</p>
+                    ) : (
+                        cartItems?.map((item, index) => (
+                            <div key={index} className="card cart-item-card mb-3">
+                                <div className="row g-0">
+                                    <div className="col-3"> {/* Reduced the image column size */}
+                                        <img src={`http://localhost:3001/uploads/${item.images[0]}`} className="img-fluid rounded-start cart-item-image" alt={item.productName} />
+                                    </div>
+                                    <div className="col-9"> {/* Adjusted this column to 9 */}
+                                        <div className="card-body p-2"> {/* Reduced padding */}
+                                            <h5 className="card-title cart-item-title">{item.productName}</h5>
+                                            <p className="card-text"><strong>Price:</strong> Rs {item.price}</p>
+                                            <p className="card-text"><strong>Shop:</strong> {item.shopName}</p>
+                                            <p className="card-text"><strong>Address:</strong> {item.address}</p>
+                                            <button className="btn btn-danger btn-sm" onClick={() => removeFromCart(item.productID._id)}>Remove</button> {/* Reduced button size */}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
+
                 <div className="col-md-4">
                     <div className="card p-3">
                         <h4 className="mb-3"><strong>Cart Summary</strong></h4>
                         <div className="mb-3">
                             <p><strong>Total Amount:</strong> Rs {calculateTotalAmount()}</p>
-                            <p><strong>Shipping Charges:</strong> Rs {shippingCharges}</p>
+                            {cartItems?.length > 0 && <p><strong>Shipping Charges:</strong> Rs {shippingCharges}</p>}
                             <hr />
-                            <p><strong>Grand Total:</strong> Rs {calculateTotalAmount() + shippingCharges}</p>
+                            <p><strong>Grand Total:</strong> Rs {calculateTotalAmount()?  calculateTotalAmount()+ shippingCharges: 0}</p>
                         </div>
 
                         <h5><strong>Shipping Details</strong></h5>
                         <form onSubmit={handleSubmit}>
+                            {/* Name */}
                             <div className="mb-3">
                                 <label htmlFor="name" className="form-label"><strong>Name</strong></label>
                                 <input
@@ -147,6 +193,8 @@ function Cart() {
                                     required
                                 />
                             </div>
+
+                            {/* Address */}
                             <div className="mb-3">
                                 <label htmlFor="address" className="form-label"><strong>Address</strong></label>
                                 <input
@@ -159,6 +207,8 @@ function Cart() {
                                     required
                                 />
                             </div>
+
+                            {/* Postal Code */}
                             <div className="mb-3">
                                 <label htmlFor="postalCode" className="form-label"><strong>Postal Code</strong></label>
                                 <input
@@ -172,6 +222,7 @@ function Cart() {
                                 />
                             </div>
 
+                            {/* Payment Method */}
                             <div className="mb-3">
                                 <label className="form-label"><strong>Payment Method</strong></label>
                                 <div className="form-check">
@@ -182,7 +233,7 @@ function Cart() {
                                         name="paymentMethod"
                                         value="easypaisa"
                                         checked={formData.paymentMethod === 'easypaisa'}
-                                        onChange={handlePaymentMethodChange}
+                                        onChange={handleFormChange}
                                     />
                                     <label className="form-check-label" htmlFor="easypaisa">
                                         <strong>Easypaisa</strong>
@@ -196,14 +247,15 @@ function Cart() {
                                         name="paymentMethod"
                                         value="jazzcash"
                                         checked={formData.paymentMethod === 'jazzcash'}
-                                        onChange={handlePaymentMethodChange}
+                                        onChange={handleFormChange}
                                     />
                                     <label className="form-check-label" htmlFor="jazzcash">
-                                        <strong>Jazz Cash</strong>
+                                        <strong>JazzCash</strong>
                                     </label>
                                 </div>
                             </div>
 
+                            {/* Phone Number */}
                             {formData.paymentMethod && (
                                 <div className="mb-3">
                                     <label htmlFor="phoneNumber" className="form-label">
@@ -221,10 +273,13 @@ function Cart() {
                                 </div>
                             )}
 
+                            {/* Error Alert */}
                             {error && <div className="alert alert-danger">{error}</div>}
 
+                            {/* Submit Button */}
                             <button type="submit" className="btn btn-primary">Place Order</button>
                         </form>
+
                     </div>
                 </div>
             </div>
