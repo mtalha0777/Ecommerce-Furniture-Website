@@ -23,7 +23,7 @@ const shopSchema = new mongoose.Schema({
         required: false, // If you want to allow shops without a profile picture
     },
     userID:{
-        type: String,
+        type: String, ref: 'login' 
     }
 });
 

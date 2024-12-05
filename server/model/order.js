@@ -16,6 +16,11 @@ const OrderSchema = new mongoose.Schema({
     totalAmount: { type: Number, required: true },
     shippingCharges: { type: Number, required: true },
     grandTotal: { type: Number, required: true },
+    status: {
+        type: String,
+        enum: ['Pending', 'In Progress', 'Delivered'],
+        default: 'Pending'
+    }
 }, { timestamps: true });
 
 module.exports = mongoose.model('order', OrderSchema);

@@ -21,13 +21,13 @@ const AddProductModal = ({ isOpen, onClose }) => {
     "Beds",
     "Storage",
   ];
+  const authToken = sessionStorage.getItem('authToken');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     // Get shopID from local storage
     const shopID = localStorage.getItem('shopID');
-console.log('myShop',localStorage);
     // Check required fields
     if (!productName || !category || !price || !shopID || images.length === 0) {
       setError("All fields are required, including images");
@@ -49,6 +49,7 @@ console.log('myShop',localStorage);
       const response = await axios.post("http://localhost:3001/createproduct", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
+          'Authorization': `Bearer ${authToken}`
         },
       });
       alert(response.data.message);

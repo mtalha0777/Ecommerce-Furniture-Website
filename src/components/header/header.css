@@ -137,3 +137,90 @@ h3 {
 .wishlist-dropdown li:hover {
     background-color: #FFF3E0;
 }
+
+.wishlist-dropdown-wrapper {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 1000;
+    margin-top: 8px;
+    width: 300px;
+}
+
+.wishlist-dropdown-container {
+    background-color: #FFF3E0;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    padding: 8px;
+    width: 100%;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.wishlist-dropdown-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.wishlist-dropdown-container::-webkit-scrollbar-track {
+    background: #FFE0B2;
+    border-radius: 3px;
+}
+
+.wishlist-dropdown-container::-webkit-scrollbar-thumb {
+    background: #FFB300;
+    border-radius: 3px;
+}
+
+.wishlist-dropdown {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+.wishlist-dropdown li {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    border-bottom: 1px solid #FFE0B2;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    width: 100%;
+}
+
+.wishlist-dropdown li:hover {
+    background-color: #FFE0B2;
+}
+
+.wishlist-dropdown li:last-child {
+    border-bottom: none;
+}
+
+.wishlist-dropdown li img {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 4px;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+.wishlist-dropdown li div {
+    flex: 1;
+    min-width: 0;
+}
+
+.wishlist-dropdown li p {
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.no-items {
+    text-align: center;
+    color: #5D4037;
+    padding: 8px;
+    margin: 0;
+    width: 100%;
+}
