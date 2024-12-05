@@ -10,7 +10,7 @@ function Del() {
 
     const handleDelete = (e) => {
         e.preventDefault();
-        axios.delete(`http://localhost:3001/logins/${email}`)
+        axios.delete(`http://localhost:3001/login/${email}`)
             .then(response => {
                 console.log(response.data);
                 alert('Account deleted successfully.');
