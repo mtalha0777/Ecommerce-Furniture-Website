@@ -1,0 +1,118 @@
+/* Base styles for the shop registration form */
+.shop-registration {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  background-color: #FFF3E0; /* Soft yellow background */
+  padding: 20px;
+  border-radius: 12px; /* Rounded corners for modern feel */
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1); /* Softer, deeper shadow */
+  background-image: linear-gradient(145deg, #FFF3E0, #FFE0B2); /* Subtle gradient */
+}
+
+.shop-registration h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #FFB300; /* Golden yellow for accents */
+  font-family: 'Arial', sans-serif;
+}
+
+.shop-registration form div {
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.shop-registration label {
+  font-weight: bold;
+  color: #5D4037; /* Rich brown text */
+  display: block;
+  margin-bottom: 5px;
+}
+
+/* Adjusting the inputs and icons */
+.shop-registration input,
+.shop-registration select {
+  width: 100%;
+  padding: 12px;
+  padding-left: 40px; /* Leave space for the icons */
+  font-size: 16px;
+  border-radius: 8px; /* Slightly more rounded for modern look */
+  border: 2px solid #DDD;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.shop-registration input:focus,
+.shop-registration select:focus {
+  border-color: #FFB300; /* Golden yellow accent on focus */
+  box-shadow: 0 0 8px rgba(255, 179, 0, 0.3); /* Add soft glow for focus */
+}
+
+.shop-registration input[type="file"] {
+  padding-left: 0;
+}
+
+.shop-registration button {
+  display: block;
+  width: 100%;
+  padding: 15px;
+  background-color: #FFB300; /* Golden yellow button */
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: bold;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.shop-registration button:hover {
+  background-color: #FFA000; /* Slightly darker on hover */
+  box-shadow: 0 4px 12px rgba(255, 179, 0, 0.4); /* Add subtle shadow on hover */
+}
+
+/* Icon positioning */
+.icon {
+  position: absolute;
+  left: 10px;
+  top: 70%;
+  transform: translateY(-50%);
+  color: #FFB300;
+  font-size: 18px;
+}
+
+/* Profile picture preview styling */
+.profile-picture-preview {
+  margin-top: 15px;
+  display: flex;
+  justify-content: center; /* Center the preview */
+}
+
+.profile-picture-preview img {
+  width: 150px;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid #DDD;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+}
+
+/* Responsive styling */
+@media (max-width: 768px) {
+  .shop-registration {
+    padding: 15px;
+  }
+
+  .shop-registration h2 {
+    font-size: 24px;
+  }
+
+  .shop-registration button {
+    font-size: 16px;
+  }
+
+  .icon {
+    font-size: 16px;
+  }
+}
