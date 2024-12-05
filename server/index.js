@@ -3,19 +3,20 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const multer = require('multer');
 const path = require('path');
-
+const jwt = require("jsonwebtoken");
+require('dotenv').config();
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 // Models
-const eappmodel = require('./model/eapp');
+const eappmodel = require('./model/user');
 const Bed = require('./model/bed');
 const Table = require('./model/table');
 const Sofa = require('./model/sofa');
 const Order = require('./model/order');
 const Shop = require("./model/shop");
-const product = require("./model/product");
 const Product = require("./model/product");
 const Favorite = require("./model/favourite");
 const Cart = require("./model/cart");
+const fs = require('fs');
 
 const app = express();
 app.use(express.json());
@@ -24,6 +25,9 @@ app.use(cors({
     credentials: true
 }));
 
+const secret = require('crypto').randomBytes(64).toString('hex');
+process.env.SECRET_KEY = secret;
+const JWT_SECRET = process.env.JWT_SECRET;
 // MongoDB connection
 const mongoUri = "mongodb+srv://farhanalibhatti785:12345@cluster0.mwimt.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 mongoose.connect(mongoUri, { useNewUrlParser: true, useUnifiedTopology: true })
@@ -36,29 +40,71 @@ db.once('open', () => {
     console.log("Connected to MongoDB");
 });
 
-// User Authentication Routes
-app.post("/logins", (req, res) => {
-    const { email, password } = req.body;
-    eappmodel.findOne({ email: email })
-        .then(user => {
-            if (user) {
-                if (user.password === password) {
-                    res.json({
-                        message: "Success",
-                        role: user.role,
-                        loginStatus: user.firstLogin,
-                        userID: user.id
+function authenticateToken(req, res, next) {
+    try {
+        const token = req.headers['authorization'].split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ 
+                error: 'Authentication failed', 
+                message: 'No token provided' 
+            });
+        }
+
+        jwt.verify(token, JWT_SECRET, (err, user) => {
+            if (err) {
+                console.log('Token Verification Error:', err);
+                if (err.name === 'TokenExpiredError') {
+                    return res.status(401).json({
+                        error: 'Authentication failed',
+                        message: 'Token has expired'
                     });
-                } else {
-                    res.status(400).json("Password is incorrect");
                 }
+                return res.status(403).json({
+                    error: 'Authentication failed',
+                    message: 'Invalid token'
+                });
+            }
+            
+            console.log('Decoded User Data:', user);
+            req.user = user;
+            next();
+        });
+    } catch (error) {
+        console.error('Authentication error:', error);
+        return res.status(500).json({
+            error: 'Authentication failed',
+            message: 'Internal server error during authentication'
+        });
+    }
+}
+
+// User Authentication Routes
+app.post("/login", (req, res) => {
+    const { email, password } = req.body;
+    eappmodel.findOne({ email })
+        .then(user => {
+            if (!user) return res.status(404).json("Email is incorrect");
+
+            if (user.password === password) {
+                const token = jwt.sign(
+                    { id: user.id, role: user.role },
+                    JWT_SECRET,
+                    { expiresIn: "1h" } // Token expires in 1 hour
+                );
+                res.json({
+                    message: "Success",
+                    role: user.role,
+                    loginStatus: user.firstLogin,
+                    userID: user.id,
+                    token // Send token to client
+                });
             } else {
-                res.status(404).json("Email is incorrect");
+                res.status(400).json("Password is incorrect");
             }
         })
         .catch(err => {
-            console.error("Error occurred while logging in:", err);
-            res.status(500).json("An error occurred while processing your request");
+            console.error("Error during login:", err);
+            res.status(500).json("An error occurred during login");
         });
 });
 
@@ -205,17 +251,17 @@ app.post('/search', async (req, res) => {
         if(category === "All Categories"){
 
             let products = await Product.find({ productName: { $regex: query, $options: 'i' } });
-    
+
             if (products.length === 0) {
                 products = await Product.find({ category: { $regex: query, $options: 'i' } });
             }
-    
+
             res.json(products);
         }
         else if(category){
-            
-           let products = await Product.find({ category: { $regex: category, $options: 'i' } });
-           res.json(products);
+
+            let products = await Product.find({ category: { $regex: category, $options: 'i' } });
+            res.json(products);
         }
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -244,14 +290,11 @@ app.post('/orders', async (req, res) => {
     }
 });
 
-app.delete('/clearcart', async (req, res) => {
-    const {userID} = req.body;
-
+app.delete('/clearcart', authenticateToken, async (req, res) => {
+    const { userID } = req.body;
     try {
-        // Clear the user's cart after successful order placement
-        await Cart.deleteMany({ userID: userID }); // Clear the cart by userID
-
-        res.status(201).json({ message: 'cart cleared successfully.' });
+        await Cart.deleteMany({ userID });
+        res.status(201).json({ message: 'Cart cleared successfully.' });
     } catch (error) {
         console.error('Error:', error);
         res.status(500).json({ message: 'Server error. Please try again later.' });
@@ -277,35 +320,39 @@ const upload = multer({
         if (mimetype && extname) {
             return cb(null, true);
         } else {
-            cb('Error: Images Only!'); // Error message
+            cb(new Error('Error: Only images (jpeg, jpg, png, gif) are allowed!')); // Error message
         }
     }
-}).array('profilePicture'); // Expect a single file with the name "profilePicture"
+}).single('profilePicture');
 
-// Shop Registration Route with file upload
-app.post("/createshop", upload, (req, res) => {
-    const { shopName, street, city, productCategories, userID } = req.body;
-    const profilePicture = req.file ? req.file.path : null;
+// Shop Registration Route with Authentication and Error Handling
+app.post('/createshop', authenticateToken, (req, res) => {
+    upload(req, res, async (err) => {
+        if (err) {
+            console.error('File upload error:', err);
+            return res.status(400).json({ error: 'File upload error', details: err.message });
+        }
 
-    // Ensure userID is saved with the shop data
-    Shop.create({ shopName, street, city, productCategories, profilePicture, userID })
-        .then(shop => {
+        try {
+            const { shopName, street, city, productCategories, userID } = req.body;
+            const profilePicture = req.file ? req.file.path : null;
+
+            // Ensure userID is saved with the shop data
+            const shop = await Shop.create({ shopName, street, city, productCategories, profilePicture, userID });
+
             // After shop creation, update the firstLogin status in the user model
-            eappmodel.findByIdAndUpdate(userID, { firstLogin: false }, { new: true })
-                .then(updatedUser => {
-                    res.status(201).json({ 
-                        message: 'Shop created successfully'
-                    });
-                })
-                .catch(err => {
-                    console.error('Failed to update firstLogin:', err);
-                    res.status(500).json({ error: 'Failed to update firstLogin', details: err });
-                });
-        })
-        .catch(err => {
-            console.error('Failed to create shop:', err);
-            res.status(500).json({ error: 'Failed to create shop', details: err });
-        });
+            const updatedUser = await eappmodel.findByIdAndUpdate(userID, { firstLogin: false }, { new: true });
+
+            res.status(201).json({
+                message: 'Shop created successfully',
+                shop: shop,
+                updatedUser: updatedUser
+            });
+        } catch (err) {
+            console.error('Failed to create shop or update firstLogin:', err);
+            res.status(500).json({ error: 'Server error occurred', details: err.message });
+        }
+    });
 });
 
 
@@ -326,7 +373,7 @@ app.post("/searchedProduct", (req, res) => {
         });
 });
 
-app.post("/shop", (req, res) => {
+app.post("/shop", authenticateToken, (req, res) => {
     const { userID, shopID } = req.body;
 
     if (!userID && !shopID) {
@@ -347,6 +394,7 @@ app.post("/shop", (req, res) => {
                 res.status(500).json({ error: 'Failed to fetch shop', details: err });
             });
     } else if (userID) {
+        console.log('userID coming', userID);
         // If userID is provided, find shops by userID
         Shop.find({ userID: userID })
             .then(shops => {
@@ -380,7 +428,7 @@ const muiltFiles = multer({
     }
 }).array('productImages', 5);
 
-app.post('/createproduct', (req, res) => {
+app.post('/createproduct',authenticateToken, (req, res) => {
     muiltFiles(req, res, (err) => {
         if (err) {
             return res.status(400).json({ error: err });
@@ -439,7 +487,7 @@ app.post('/productsByShop', (req, res) => {
             res.status(500).json({ error: 'Failed to fetch products', details: err });
         });
 });
-app.post('/create-payment-intent', async (req, res) => {
+app.post('/create-payment-intent', authenticateToken, async (req, res) => {
     try {
         const { amount } = req.body;
         console.log('Received amount:', amount);
@@ -455,21 +503,36 @@ app.post('/create-payment-intent', async (req, res) => {
     }
 });
 
-app.post('/favorite', async (req, res) => {
-    const { userID, productID, productName } = req.body;
+app.post('/favorite', authenticateToken, async (req, res) => {
+    const { userID, productID, productName, category, price, images, shopName, address } = req.body;
+    console.log('already in api')
 
-    if (!userID || !productID || !productName) {
+    if (!userID || !productID) {
         return res.status(400).json({ error: 'userID and productID are required' });
     }
 
     try {
-        const existingFavorite = await Favorite.findOne({ userID, productID });
+        const existingFavorite = await Favorite.findOne({ 
+            userID, 
+            'product.productID': productID 
+        });
 
         if (existingFavorite) {
             await Favorite.deleteOne({ _id: existingFavorite._id });
             return res.status(200).json({ message: 'Favorite product removed successfully!' });
         } else {
-            const newFavorite = new Favorite({ userID, productID, productName });
+            const newFavorite = new Favorite({
+                userID,
+                product: {
+                    productID,
+                    productName,
+                    category,
+                    price,
+                    images,
+                    shopName,
+                    address
+                }
+            });
             await newFavorite.save();
             return res.status(201).json({ message: 'Favorite product added successfully!' });
         }
@@ -480,132 +543,142 @@ app.post('/favorite', async (req, res) => {
     }
 });
 
-app.post('/checkFavorite', async (req, res) => {
+app.post('/checkFavorite', authenticateToken, async (req, res) => {
     const { userID, productID } = req.body;
-  
+
     if (!userID || !productID) {
-      return res.status(400).json({ error: 'userID and productID are required' });
+        return res.status(400).json({ error: 'userID and productID are required' });
     }
-  
+
     try {
-      const existingFavorite = await Favorite.findOne({ userID, productID });
-  
-      if (existingFavorite) {
-        return res.status(200).json({ isFavorite: true });
-      } else {
-        return res.status(200).json({ isFavorite: false });
-      }
-  
+        const existingFavorite = await Favorite.findOne({ 
+            userID, 
+            'product.productID': productID 
+        });
+
+        if (existingFavorite) {
+            return res.status(200).json({ isFavorite: true });
+        } else {
+            return res.status(200).json({ isFavorite: false });
+        }
+
     } catch (error) {
-      console.error('Error checking favorite:', error);
-      return res.status(500).json({ error: 'Failed to check favorite status', details: error });
+        console.error('Error checking favorite:', error);
+        return res.status(500).json({ error: 'Failed to check favorite status', details: error });
     }
-  });
-  
-  app.get('/favorites/:userID', async (req, res) => {
+});
+
+app.get('/favorites/:userID', authenticateToken, async (req, res) => {
     const { userID } = req.params;
-
     try {
-        const favorites = await Favorite.find({ userID }).populate('productID', 'productName');
-        
-        const favoriteProducts = favorites.map(fav => ({
-            productID: fav.productID._id,
-            productName: fav.productID.productName
-        }));
-
-        res.status(200).json(favoriteProducts);
+        const favorites = await Favorite.find({ userID });
+        res.status(200).json(favorites);
     } catch (error) {
         console.error('Error fetching favorites:', error);
         res.status(500).json({ error: 'Failed to fetch favorite products' });
     }
 });
 
-app.post('/addToCart', async (req, res) => {
+app.post('/addToCart', authenticateToken, async (req, res) => {
     const { userID, productID, productName, category, price, images, shopName, address } = req.body;
-  
-    if (!userID || !productID) {
-      return res.status(400).json({ error: 'User ID and Product ID are required.' });
-    }
-  
-    try {
-      // Check if cart already exists for the user
-      let cart = await Cart
-      .findOne({ userID });
-  
-      // If cart doesn't exist, create a new one
-      if (!cart) {
-        cart = new Cart({ userID, products: [] });
-      }
-  
-      // Check if the product already exists in the cart
-      const existingProductIndex = cart.products.findIndex(product => product.productID.toString() === productID);
-  
-      if (existingProductIndex !== -1) {
-        // Product exists, remove it from the cart
-        cart.products.splice(existingProductIndex, 1);
-        res.status(200).json({ message: 'Product removed from cart successfully!' });
-      } else {
-        // Product does not exist, add it to the cart
-        cart.products.push({ productID, productName, category, price, images, shopName, address });
-        res.status(201).json({ message: 'Product added to cart successfully!' });
-      }
-  
-      // Save the updated cart
-      await cart.save();
-    } catch (error) {
-      console.error('Error updating cart:', error);
-      res.status(500).json({ error: 'Failed to update cart.' });
-    }
-  });  
 
-  app.post('/checkInCart', async (req, res) => {
+    if (!userID || !productID) {
+        return res.status(400).json({ error: 'User ID and Product ID are required.' });
+    }
+
+    try {
+        // Check if cart already exists for the user
+        let cart = await Cart
+            .findOne({ userID });
+
+        // If cart doesn't exist, create a new one
+        if (!cart) {
+            cart = new Cart({ userID, products: [] });
+        }
+
+        // Check if the product already exists in the cart
+        const existingProductIndex = cart.products.findIndex(product => product.productID.toString() === productID);
+
+        if (existingProductIndex !== -1) {
+            // Product exists, remove it from the cart
+            cart.products.splice(existingProductIndex, 1);
+            res.status(200).json({ message: 'Product removed from cart successfully!' });
+        } else {
+            // Product does not exist, add it to the cart
+            cart.products.push({ productID, productName, category, price, images, shopName, address });
+            res.status(201).json({ message: 'Product added to cart successfully!' });
+        }
+
+        // Save the updated cart
+        await cart.save();
+    } catch (error) {
+        console.error('Error updating cart:', error);
+        res.status(500).json({ error: 'Failed to update cart.' });
+    }
+});
+
+app.post('/checkInCart', authenticateToken, async (req, res) => {
     const { userID, productID } = req.body;
-  
-    if (!userID || !productID) {
-      return res.status(400).json({ error: 'User ID and Product ID are required.' });
-    }
-  
-    try {
-      // Find the user's cart
-      const cart = await Cart.findOne({ userID });
-  
-      if (cart) {
-        // Check if the product exists in the cart
-        const productExists = cart.products.some(product => product.productID.toString() === productID);
-        return res.status(200).json({ isInCart: productExists });
-      } else {
-        return res.status(200).json({ isInCart: false });
-      }
-    } catch (error) {
-      console.error('Error checking cart:', error);
-      res.status(500).json({ error: 'Failed to check cart status.' });
-    }
-  });
 
-  app.get('/cart/:userID', async (req, res) => {
+    if (!userID || !productID) {
+        return res.status(400).json({ error: 'User ID and Product ID are required.' });
+    }
+
+    try {
+        // Find the user's cart
+        const cart = await Cart.findOne({ userID });
+
+        if (cart) {
+            // Check if the product exists in the cart
+            const productExists = cart.products.some(product => product.productID.toString() === productID);
+            return res.status(200).json({ isInCart: productExists });
+        } else {
+            return res.status(200).json({ isInCart: false });
+        }
+    } catch (error) {
+        console.error('Error checking cart:', error);
+        res.status(500).json({ error: 'Failed to check cart status.' });
+    }
+});
+
+app.get('/cart/:userID', authenticateToken, async (req, res) => {
     const { userID } = req.params;
 
     try {
         // Fetch the cart items for the given userID
-        const cart = await Cart.findOne({ userID }).populate('products.productID');
+        const cart = await Cart.findOne({ userID });
 
         if (!cart) {
             return res.status(404).json({ message: 'Cart not found for this user.' });
         }
 
-        res.json(cart);
+        // Transform the response to include the full product details
+        const cartWithProducts = {
+            ...cart.toObject(),
+            products: cart.products.map(product => ({
+                productID: product.productID,
+                productName: product.productName,
+                category: product.category,
+                price: product.price,
+                images: product.images,
+                shopName: product.shopName,
+                address: product.address,
+                _id: product._id
+            }))
+        };
+
+        res.json(cartWithProducts);
     } catch (error) {
         console.error('Error fetching cart:', error);
         res.status(500).json({ message: 'Server error. Please try again later.' });
     }
 });
 
-app.delete('/cart/:userID/remove/:productID', async (req, res) => {
+app.delete('/cart/:userID/remove/:productID', authenticateToken, async (req, res) => {
     const { userID, productID } = req.params;
 
     try {
         const cart = await Cart.findOne({ userID });
-
         if (!cart) {
             return res.status(404).json({ message: 'Cart not found for this user.' });
         }
@@ -621,7 +694,7 @@ app.delete('/cart/:userID/remove/:productID', async (req, res) => {
     }
 });
 
-app.delete('/deleteProduct', async (req, res) => {
+app.delete('/deleteProduct', authenticateToken, async (req, res) => {
     const { id } = req.body; // Get the ID from the request body
 
     if (!id) {
@@ -631,7 +704,7 @@ app.delete('/deleteProduct', async (req, res) => {
     try {
         // Find the product by ID and delete it
         const deletedProduct = await Product.findByIdAndDelete(id);
-        
+
         // Check if the product was found and deleted
         if (!deletedProduct) {
             return res.status(404).json({ message: 'Product not found' });
@@ -642,6 +715,341 @@ app.delete('/deleteProduct', async (req, res) => {
         console.error(error);
         return res.status(500).json({ message: 'Server error' });
     }
+});
+
+// Add this endpoint for updating shop details
+app.put('/updateShop', authenticateToken, (req, res) => {
+    upload(req, res, async (err) => {
+        if (err) {
+            console.error('File upload error:', err);
+            return res.status(400).json({ error: 'File upload error', details: err.message });
+        }
+
+        try {
+            const { shopID, shopName, street, city, productCategories } = req.body;
+            
+            // Create update object
+            const updateData = {
+                shopName,
+                street,
+                city,
+                productCategories
+            };
+
+            // If a new profile picture was uploaded, add it to the update
+            if (req.file) {
+                updateData.profilePicture = req.file.path;
+            }
+
+            // Find and update the shop
+            const updatedShop = await Shop.findByIdAndUpdate(
+                shopID,
+                updateData,
+                { new: true, runValidators: true }
+            );
+
+            if (!updatedShop) {
+                return res.status(404).json({ error: 'Shop not found' });
+            }
+
+            res.status(200).json({
+                message: 'Shop updated successfully',
+                shop: updatedShop
+            });
+
+        } catch (err) {
+            console.error('Failed to update shop:', err);
+            res.status(500).json({ 
+                error: 'Server error occurred', 
+                details: err.message 
+            });
+        }
+    });
+});
+
+// Add this endpoint to get shop details
+app.get('/shop/:shopID', authenticateToken, async (req, res) => {
+    try {
+        const shop = await Shop.findById(req.params.shopID);
+        
+        if (!shop) {
+            return res.status(200).json({ error: 'Shop not found' });
+        }
+
+        res.status(200).json({ shop });
+    } catch (err) {
+        console.error('Failed to fetch shop:', err);
+        res.status(500).json({ 
+            error: 'Server error occurred', 
+            details: err.message 
+        });
+    }
+});
+
+// Get user details
+app.get('/user/:userID', authenticateToken, async (req, res) => {
+    try {
+        const user = await eappmodel.findById(req.params.userID, '-password'); // Exclude password from response
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        res.status(200).json(user);
+    } catch (error) {
+        console.error('Error fetching user:', error);
+        res.status(500).json({ message: 'Server error occurred' });
+    }
+});
+
+// Update user details (only name and phone number)
+app.put('/user/:userID', authenticateToken, async (req, res) => {
+    try {
+        const { name, phoneNumber } = req.body;
+        
+        // Only allow updating name and phone number
+        const updateData = {};
+        if (name) updateData.name = name;
+        if (phoneNumber) updateData.phoneNumber = phoneNumber;
+
+        const updatedUser = await eappmodel.findByIdAndUpdate(
+            req.params.userID,
+            updateData,
+            { new: true, select: '-password' } // Return updated document without password
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.status(200).json({
+            message: 'User updated successfully',
+            user: updatedUser
+        });
+    } catch (error) {
+        console.error('Error updating user:', error);
+        res.status(500).json({ message: 'Server error occurred' });
+    }
+});
+
+// Add this new endpoint for updating profile picture
+app.put('/user/:userID/profile-picture', authenticateToken, (req, res) => {
+  upload(req, res, async (err) => {
+    if (err) {
+      console.error('File upload error:', err);
+      return res.status(400).json({ message: 'File upload error', details: err.message });
+    }
+
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+
+      const user = await eappmodel.findById(req.params.userID);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // If there's an existing profile picture, delete it
+      if (user.profilePicture) {
+        const oldPicturePath = path.join(__dirname, user.profilePicture);
+        fs.unlink(oldPicturePath, (err) => {
+          if (err) console.error('Error deleting old profile picture:', err);
+        });
+      }
+
+      // Update user with new profile picture
+      user.profilePicture = req.file.path;
+      await user.save();
+
+      res.status(200).json({
+        message: 'Profile picture updated successfully',
+        profilePicture: req.file.path
+      });
+    } catch (error) {
+      console.error('Error updating profile picture:', error);
+      res.status(500).json({ message: 'Server error occurred' });
+    }
+  });
+});
+
+// Get all users with pagination
+app.get('/users', authenticateToken, async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        const users = await eappmodel
+            .find({}, '-password') // Exclude password from response
+            .skip(skip)
+            .limit(limit)
+            .sort({ createdAt: -1 }); // Sort by creation date, newest first
+
+        const total = await eappmodel.countDocuments();
+
+        res.status(200).json({
+            users,
+            currentPage: page,
+            totalPages: Math.ceil(total / limit),
+            totalUsers: total
+        });
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).json({ message: 'Server error occurred' });
+    }
+});
+
+// Update user role
+app.put('/users/:userID/role', authenticateToken, async (req, res) => {
+    try {
+        const { role } = req.body;
+        const updatedUser = await eappmodel.findByIdAndUpdate(
+            req.params.userID,
+            { role },
+            { new: true, select: '-password' }
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.status(200).json({
+            message: 'User role updated successfully',
+            user: updatedUser
+        });
+    } catch (error) {
+        console.error('Error updating user role:', error);
+        res.status(500).json({ message: 'Server error occurred' });
+    }
+});
+
+// Delete user
+app.delete('/users/:userID', authenticateToken, async (req, res) => {
+    try {
+        const deletedUser = await eappmodel.findByIdAndDelete(req.params.userID);
+        
+        if (!deletedUser) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.status(200).json({
+            message: 'User deleted successfully'
+        });
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        res.status(500).json({ message: 'Server error occurred' });
+    }
+});
+
+// Get all orders
+app.get('/orders', authenticateToken, async (req, res) => {
+    try {
+        const orders = await Order.find().sort({ createdAt: -1 });
+        res.status(200).json(orders);
+    } catch (error) {
+        console.error('Error fetching orders:', error);
+        res.status(500).json({ message: 'Server error occurred' });
+    }
+});
+
+// Update order status
+app.put('/orders/:orderId/status', authenticateToken, async (req, res) => {
+    try {
+        const { status } = req.body;
+        const updatedOrder = await Order.findByIdAndUpdate(
+            req.params.orderId,
+            { status },
+            { new: true }
+        );
+
+        if (!updatedOrder) {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+
+        res.status(200).json({
+            message: 'Order status updated successfully',
+            order: updatedOrder
+        });
+    } catch (error) {
+        console.error('Error updating order status:', error);
+        res.status(500).json({ message: 'Server error occurred' });
+    }
+});
+
+// Get all shops
+app.get('/shops', authenticateToken, async (req, res) => {
+    try {
+        const shops = await Shop.find().sort({ createdAt: -1 });
+        res.status(200).json(shops);
+    } catch (error) {
+        console.error('Error fetching shops:', error);
+        res.status(500).json({ message: 'Server error occurred' });
+    }
+});
+
+// Add this endpoint for updating product details
+app.put('/updateProduct', authenticateToken, (req, res) => {
+    muiltFiles(req, res, async (err) => {
+        if (err) {
+            return res.status(400).json({ error: err });
+        }
+
+        try {
+            const { productID, existingImages } = req.body;
+            const updateData = {};
+
+            // Update basic product information if provided
+            if (req.body.productName) updateData.productName = req.body.productName;
+            if (req.body.category) updateData.category = req.body.category;
+            if (req.body.price) updateData.price = req.body.price;
+
+            // Handle images
+            let images = [];
+            
+            // Parse existingImages if it's a string
+            if (typeof existingImages === 'string') {
+                try {
+                    images = JSON.parse(existingImages);
+                } catch (e) {
+                    images = existingImages.split(',').filter(img => img.trim());
+                }
+            } else if (Array.isArray(existingImages)) {
+                images = existingImages;
+            }
+
+            // Add new uploaded images
+            if (req.files && req.files.length > 0) {
+                const newImages = req.files.map(file => file.filename);
+                images = [...images, ...newImages];
+            }
+            
+            // Update images only if we have any
+            if (images.length > 0) {
+                updateData.images = images;
+            }
+
+            const updatedProduct = await Product.findByIdAndUpdate(
+                productID,
+                updateData,
+                { new: true }
+            );
+
+            if (!updatedProduct) {
+                return res.status(404).json({ error: 'Product not found' });
+            }
+
+            res.status(200).json({
+                message: 'Product updated successfully',
+                product: updatedProduct
+            });
+
+        } catch (err) {
+            console.error('Failed to update product:', err);
+            res.status(500).json({ 
+                error: 'Server error occurred', 
+                details: err.message 
+            });
+        }
+    });
 });
 
 app.listen(3001, () => {

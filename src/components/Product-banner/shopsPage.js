@@ -1,25 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useLocation } from "react-router-dom";
-import {
-  Card,
-  CardContent,
-  CardMedia,
-  Typography,
-  CardActionArea,
-  Grid,
-  Box,
-  Chip,
-  Container,
-  Avatar,
-  Divider,
-  Modal,
-  Backdrop,
-  Fade,
-  IconButton,
-  Button,
-} from "@mui/material";
-import { ArrowBackIos, ArrowForwardIos } from "@mui/icons-material";
+import { Typography, Container, Box, CircularProgress, Divider } from "@mui/material";
+import ShopDetails from './ShopDetails';
+import ProductList from './ProductList';
+import ProductModal from './ProductModal';
 
 const ShopsPage = () => {
   const [products, setProducts] = useState([]);
@@ -28,6 +13,15 @@ const ShopsPage = () => {
   const [openModal, setOpenModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedShop, setEditedShop] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState({ type: '', text: '' });
+  const fileInputRef = useRef(null);
+  const authToken = sessionStorage.getItem('authToken');
+  const [isEditingProduct, setIsEditingProduct] = useState(false);
+  const [editedProduct, setEditedProduct] = useState(null);
+  const productFileInputRef = useRef(null);
 
   const location = useLocation();
   const { shop } = location.state;
@@ -56,7 +50,7 @@ const ShopsPage = () => {
     } else {
       setLoading(false);
     }
-  }, [shop,selectedProduct]);
+  }, [shop, selectedProduct]);
 
   const handleCardClick = (product) => {
     setSelectedProduct(product);
@@ -72,11 +66,12 @@ const ShopsPage = () => {
   const deleteProduct = async () => {
     try {
       const response = await axios.delete('http://localhost:3001/deleteProduct', {
-        data: { id: selectedProduct._id } // Pass the ID in the request body
+        data: { id: selectedProduct._id },
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
       });
-      console.log(response.data.message); // Handle success message
-      
-      // Close the modal after deletion
+      console.log(response.data.message);
       handleCloseModal();
     } catch (error) {
       console.error('Error deleting product:', error.response.data.message);
@@ -98,7 +93,167 @@ const ShopsPage = () => {
       );
     }
   };
-  console.log("selectedProduct", selectedProduct);
+
+  const handleEditClick = () => {
+    setIsEditing(true);
+    setEditedShop({ ...shop });
+  };
+
+  const handleProfilePictureChange = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+    const maxSize = 5 * 1024 * 1024;
+
+    if (!validTypes.includes(file.type)) {
+      setUpdateMessage({ type: 'error', text: 'Please upload a valid image file (JPEG, PNG)' });
+      return;
+    }
+
+    if (file.size > maxSize) {
+      setUpdateMessage({ type: 'error', text: 'File size should be less than 5MB' });
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append('profilePicture', file);
+      formData.append('shopID', shop._id);
+      formData.append('shopName', editedShop.shopName);
+      formData.append('street', editedShop.street);
+      formData.append('city', editedShop.city);
+      formData.append('productCategories', editedShop.productCategories);
+      const response = await axios.put('http://localhost:3001/updateShop', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+
+      location.state.shop = response.data.shop;
+      setUpdateMessage({ type: 'success', text: 'Profile picture updated successfully' });
+    } catch (error) {
+      console.error('Error updating profile picture:', error);
+      setUpdateMessage({ 
+        type: 'error', 
+        text: error.response?.data?.error || 'Failed to update profile picture' 
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleEditSave = async () => {
+    try {
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append('shopID', shop._id);
+      formData.append('shopName', editedShop.shopName);
+      formData.append('street', editedShop.street);
+      formData.append('city', editedShop.city);
+      formData.append('productCategories', editedShop.productCategories);
+
+      const response = await axios.put('http://localhost:3001/updateShop', formData, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+      location.state.shop = response.data.shop;
+      setIsEditing(false);
+      setUpdateMessage({ type: 'success', text: 'Shop updated successfully' });
+    } catch (error) {
+      console.error('Error updating shop:', error);
+      setUpdateMessage({ 
+        type: 'error', 
+        text: error.response?.data?.error || 'Failed to update shop' 
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDeleteImage = (index) => {
+    if (editedProduct) {
+      const newImages = [...editedProduct.images];
+      newImages.splice(index, 1);
+      setEditedProduct({ ...editedProduct, images: newImages });
+    }
+  };
+
+  const handleProductImageUpload = async (event) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    const formData = new FormData();
+    formData.append('productID', editedProduct._id);
+    
+    editedProduct.images.forEach((image, index) => {
+      formData.append('existingImages', image);
+    });
+    
+    for (let i = 0; i < files.length; i++) {
+      formData.append('productImages', files[i]);
+    }
+
+    try {
+      setIsUploading(true);
+      const response = await axios.put(
+        'http://localhost:3001/updateProduct',
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'Authorization': `Bearer ${authToken}`
+          }
+        }
+      );
+      
+      setSelectedProduct(response.data.product);
+      setEditedProduct(response.data.product);
+      setUpdateMessage({ type: 'success', text: 'Product updated successfully' });
+    } catch (error) {
+      setUpdateMessage({ 
+        type: 'error', 
+        text: error.response?.data?.error || 'Failed to update product' 
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleEditProduct = () => {
+    setIsEditingProduct(true);
+    setEditedProduct({ ...selectedProduct });
+  };
+
+  const handleSaveProduct = async () => {
+    try {
+      setIsUploading(true);
+      const response = await axios.put(
+        'http://localhost:3001/updateProduct',
+        editedProduct,
+        {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        }
+      );
+      
+      setSelectedProduct(response.data.product);
+      setIsEditingProduct(false);
+      setUpdateMessage({ type: 'success', text: 'Product updated successfully' });
+    } catch (error) {
+      setUpdateMessage({ 
+        type: 'error', 
+        text: error.response?.data?.error || 'Failed to update product' 
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -108,258 +263,109 @@ const ShopsPage = () => {
   }
 
   return (
-    <Container
-      sx={{
-        backgroundColor: "#FFF3E0", // Soft yellow for the overall background
-        padding: "20px",
-        borderRadius: "12px", // Rounded corners for containers
-        boxShadow: "0px 4px 8px rgba(0, 0, 0, 0.1)", // Soft shadow for depth
-      }}
-    >
+    <>
       <Typography
         variant="h4"
         component="h2"
         align="center"
         gutterBottom
         sx={{
-          color: "#5D4037", // Rich brown for the heading
+          color: "#5D4037",
           fontWeight: "bold",
+          padding: "20px"
         }}
       >
-        Shop Details
+        Shop Detail
       </Typography>
-      <Box sx={{ display: "flex", alignItems: "center", mb: 4 }}>
-        <Avatar
-          alt={shop.shopName}
-          src={`http://localhost:3001/${shop.profilePicture}`}
-          sx={{
-            width: 80,
-            height: 80,
-            mr: 2,
-            borderRadius: "50%",
-            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)", // Soft shadow for depth on Avatar
-          }}
-        />
-        <Box>
-          <Typography
-            variant="h5"
-            sx={{ color: "#5D4037", fontWeight: "500" }} // Rich brown for subheading
-          >
-            {shop.shopName}
-          </Typography>
-          <Typography
-            variant="body2"
-            sx={{ color: "#5D4037", fontWeight: "lighter" }}
-          >
-            {shop.city}, {shop.street}
-          </Typography>
-          <Chip
-            label={shop.productCategories}
-            sx={{
-              backgroundColor: "#FFB300", // Golden yellow accent for chip
-              color: "#FFF", // White text for contrast
-              mt: 1,
-            }}
-          />
-        </Box>
-      </Box>
-      <Divider sx={{ mb: 4, borderColor: "#FFB300" }} /> {/* Golden divider */}
-      <Typography
-        variant="h5"
-        component="h3"
-        align="center"
-        gutterBottom
-        sx={{ color: "#5D4037", fontWeight: "500" }}
+      <Container
+        sx={{
+          backgroundColor: "#FFF3E0",
+          padding: "20px",
+          borderRadius: "12px",
+          boxShadow: "0px 4px 8px rgba(0, 0, 0, 0.1)",
+        }}
       >
-        Your added Products
-      </Typography>
-      <Grid container spacing={3}>
-        {products.length === 0 ? (
-          <Typography
-            variant="body1"
-            align="center"
-            sx={{ width: "100%", color: "#5D4037" }} // Brown for empty state
-          >
-            No products found for this shop.
-          </Typography>
-        ) : (
-          products.map((product) => (
-            <Grid item xs={12} sm={6} md={4} key={product._id}>
-              <Card
-                sx={{
-                  backgroundColor: "#FFE0B2", // Light yellow for product card background
-                  borderRadius: "12px", // Rounded corners
-                  boxShadow: "0px 4px 8px rgba(0, 0, 0, 0.1)", // Soft shadow for depth
-                  "&:hover": {
-                    boxShadow: "0px 8px 16px rgba(0, 0, 0, 0.2)", // Slightly stronger shadow on hover
-                  },
-                }}
-                onClick={() => handleCardClick(product)}
-              >
-                <CardActionArea>
-                  <CardMedia
-                    component="img"
-                    height="140"
-                    image={`http://localhost:3001/uploads/${product.images[0]}`}
-                    alt={product.productName}
-                    sx={{
-                      borderRadius: "12px 12px 0 0", // Rounded top corners for image
-                      objectFit: "cover",
-                    }}
-                  />
-                  <CardContent>
-                    <Typography
-                      gutterBottom
-                      variant="h6"
-                      component="div"
-                      sx={{ color: "#5D4037", fontWeight: "bold" }}
-                    >
-                      {product.productName}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{ color: "#5D4037", fontWeight: "lighter" }}
-                    >
-                      Price: ${product.price}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: "#5D4037" }}>
-                      Category: {product.category}
-                    </Typography>
-                  </CardContent>
-                </CardActionArea>
-              </Card>
-            </Grid>
-          ))
-        )}
-      </Grid>
-      {/* Modal for displaying product details */}
-      {selectedProduct && (
-        <Modal
-          open={openModal}
-          onClose={handleCloseModal}
-          closeAfterTransition
-          BackdropComponent={Backdrop}
-          BackdropProps={{
-            timeout: 500,
-            sx: { backgroundColor: "rgba(0, 0, 0, 0.7)" },
-          }}
+        <ShopDetails
+          shop={shop}
+          isEditing={isEditing}
+          editedShop={editedShop}
+          setEditedShop={setEditedShop}
+          handleEditClick={handleEditClick}
+          handleEditSave={handleEditSave}
+          fileInputRef={fileInputRef}
+          handleProfilePictureChange={handleProfilePictureChange}
+          setIsEditing={setIsEditing}
+        />
+        <Divider sx={{ mb: 4, borderColor: "#FFB300" }} />
+        <Typography
+          variant="h5"
+          component="h3"
+          align="center"
+          gutterBottom
+          sx={{ color: "#5D4037", fontWeight: "500" }}
         >
-          <Fade in={openModal}>
-            <Box
-              sx={{
-                bgcolor: "#FFF3E0", // Soft yellow for modal background
-                boxShadow: 24,
-                p: 4,
-                maxWidth: 600,
-                mx: "auto",
-                my: "10%",
-                outline: "none",
-                borderRadius: "12px",
-                position: "relative",
-              }}
-            >
-              <Typography
-                variant="h5"
-                component="h2"
-                sx={{
-                  mb: 2,
-                  color: "#5D4037",
-                  fontWeight: "bold",
-                }}
-              >
-                {selectedProduct.productName}
-              </Typography>
-              <Box
-                sx={{
-                  position: "relative",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  height: 300,
-                  width: "100%",
-                  overflow: "hidden",
-                  mb: 2,
-                }}
-              >
-                <IconButton
-                  onClick={handlePrevImage}
-                  sx={{
-                    position: "absolute",
-                    left: 0,
-                    zIndex: 1,
-                    backgroundColor: "rgba(255, 255, 255, 0.7)",
-                    "&:hover": { backgroundColor: "rgba(255, 255, 255, 1)" },
-                  }}
-                >
-                  {selectedProduct.images.length > 1 && <ArrowBackIos />}
-                </IconButton>
-                <CardMedia
-                  component="img"
-                  sx={{
-                    maxHeight: "100%",
-                    maxWidth: "100%",
-                    objectFit: "contain",
-                    border: "1px solid #FFB300", // Accent border around image
-                    borderRadius: "8px",
-                  }}
-                  image={`http://localhost:3001/uploads/${selectedProduct.images[currentImageIndex]}`}
-                  alt={`Product Image ${currentImageIndex + 1}`}
-                />
-                <IconButton
-                  onClick={handleNextImage}
-                  sx={{
-                    position: "absolute",
-                    right: 0,
-                    zIndex: 1,
-                    backgroundColor: "rgba(255, 255, 255, 0.7)",
-                    "&:hover": { backgroundColor: "rgba(255, 255, 255, 1)" },
-                  }}
-                >
-                  {selectedProduct.images.length > 1 && <ArrowForwardIos />}
-                </IconButton>
-              </Box>
-              <Typography variant="body2" sx={{ mt: 2, color: "#5D4037" }}>
-                Price: {selectedProduct.price}
-              </Typography>
-              <Typography variant="body2" sx={{ mt: 1, color: "#5D4037" }}>
-                Category: {selectedProduct.category}
-              </Typography>
-              <Button
-                onClick={handleCloseModal}
-                sx={{
-                  mt: 2,
-                  backgroundColor: "#FFB300", // Golden yellow for button
-                  color: "#FFFFFF",
-                  "&:hover": {
-                    backgroundColor: "#FF9B00", // Slightly darker on hover
-                  },
-                  borderRadius: "12px", // Rounded corners for buttons
-                }}
-                variant="contained"
-              >
-                Close
-              </Button>
-              <Button
-                onClick={deleteProduct}
-                sx={{
-                  mt: 2,
-                  ml: 2,
-                  backgroundColor: "red", // Golden yellow for button
-                  color: "#FFFFFF",
-                  "&:hover": {
-                    backgroundColor: "gray", // Slightly darker on hover
-                  },
-                  borderRadius: "12px", // Rounded corners for buttons
-                }}
-                variant="contained"
-              >
-                Delete
-              </Button>
-            </Box>
-          </Fade>
-        </Modal>
-      )}
-    </Container>
+          Your added Products
+        </Typography>
+        <ProductList
+          products={products}
+          handleCardClick={handleCardClick}
+        />
+        {selectedProduct && (
+          <ProductModal
+            openModal={openModal}
+            handleCloseModal={handleCloseModal}
+            selectedProduct={selectedProduct}
+            currentImageIndex={currentImageIndex}
+            handlePrevImage={handlePrevImage}
+            handleNextImage={handleNextImage}
+            handleEditProduct={handleEditProduct}
+            deleteProduct={deleteProduct}
+            isEditingProduct={isEditingProduct}
+            editedProduct={editedProduct}
+            setEditedProduct={setEditedProduct}
+            handleDeleteImage={handleDeleteImage}
+            productFileInputRef={productFileInputRef}
+            handleProductImageUpload={handleProductImageUpload}
+            handleSaveProduct={handleSaveProduct}
+            setIsEditingProduct={setIsEditingProduct}
+          />
+        )}
+        {updateMessage.text && (
+          <Box
+            sx={{
+              mt: 2,
+              p: 2,
+              borderRadius: '8px',
+              backgroundColor: updateMessage.type === 'success' ? '#E8F5E9' : '#FFEBEE',
+              color: updateMessage.type === 'success' ? '#2E7D32' : '#C62828',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Typography>{updateMessage.text}</Typography>
+          </Box>
+        )}
+        {isUploading && (
+          <Box
+            sx={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999,
+            }}
+          >
+            <CircularProgress sx={{ color: '#FFB300' }} />
+          </Box>
+        )}
+      </Container>
+    </>
   );
 };
 

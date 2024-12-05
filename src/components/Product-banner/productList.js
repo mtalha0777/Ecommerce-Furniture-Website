@@ -39,6 +39,7 @@ const ProductList = () => {
 
   const location = useLocation();
   const category = location.state?.category;
+  const authToken = sessionStorage.getItem('authToken');
 
   useEffect(() => {
     if (category) {
@@ -47,7 +48,12 @@ const ProductList = () => {
         try {
           const response = await axios.post(
             `http://localhost:3001/searchedProduct`,
-            { searchTerm: category }
+            { searchTerm: category },
+            {
+              headers: {
+                'Authorization': `Bearer ${authToken}`
+              }
+            }
           );
           setProdList(response.data.products);
         } catch (err) {
@@ -72,19 +78,37 @@ const ProductList = () => {
     try {
       const shopResponse = await axios.post(`http://localhost:3001/shop`, {
         shopID: product.shopID,
+      },
+    
+      {
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
       });
       setShopDetails(shopResponse.data.shop);
 
       const favoriteResponse = await axios.post(`http://localhost:3001/checkFavorite`, {
         userID,
         productID: product._id,
-      });
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        }
+      );
       setIsFavorite(favoriteResponse.data.isFavorite);
 
       const cartResponse = await axios.post(`http://localhost:3001/checkInCart`, {
         userID,
         productID: product._id,
-      });
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        }
+      );
       setIsInCart(cartResponse.data.isInCart);
     } catch (err) {
       console.error("Error occurred while fetching data:", err);
@@ -117,23 +141,33 @@ const ProductList = () => {
     const productID = selectedProduct?._id;
 
     if (!userID || !productID) {
-      console.error("User ID or Product ID is missing.");
-      return;
+        console.error("User ID or Product ID is missing.");
+        return;
     }
 
     try {
-      const response = await axios.post("http://localhost:3001/favorite", {
-        userID,
-        productID,
-      });
+        const response = await axios.post("http://localhost:3001/favorite", {
+            userID,
+            productID,
+            productName: selectedProduct.productName,
+            category: selectedProduct.category,
+            price: selectedProduct.price,
+            images: selectedProduct.images,
+            shopName: shopDetails.shopName,
+            address: shopDetails.city
+        }, {
+            headers: {
+                'Authorization': `Bearer ${authToken}`
+            }
+        });
 
-      if (response.status === 200 || response.status === 201) {
-        setIsFavorite((prev) => !prev);
-      } else {
-        console.error("Failed to toggle favorite product:", response.data.error);
-      }
+        if (response.status === 200 || response.status === 201) {
+            setIsFavorite((prev) => !prev);
+        } else {
+            console.error("Failed to toggle favorite product:", response.data.error);
+        }
     } catch (error) {
-      console.error("Error toggling favorite product:", error);
+        console.error("Error toggling favorite product:", error);
     }
   };
 
@@ -156,7 +190,13 @@ const ProductList = () => {
         images: selectedProduct.images,
         shopName: shopDetails.shopName,
         address: shopDetails.city,
-      });
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      }
+    );
 
       if (response.status === 200 || response.status === 201) {
         setIsInCart(true);
@@ -172,24 +212,33 @@ const ProductList = () => {
   if (error) return <div>{error}</div>;
 
   return (
-    <Container sx={{ backgroundColor: "#FFF3E0", padding: "20px" }}>
-      <Typography
-        variant="h4"
-        component="h2"
-        align="center"
-        gutterBottom
-        sx={{ color: "#5D4037" }}
-      >
-        Products Selling {category}
-      </Typography>
-      <Grid container spacing={2}>
+    <>
+    <Typography
+    variant="h4"
+    component="h2"
+    align="center"
+    gutterBottom
+    sx={{ color: "#5D4037", padding: "20px" }}
+  >
+    Products Selling {category}
+  </Typography>
+    <Container 
+      maxWidth="xl"
+      boxShadow={3}
+      sx={{ 
+        background: 'linear-gradient(to right, #FFF3E0, #FFE0B2)',
+        padding: "20px",
+        minHeight: '100vh'
+      }}
+    >
+      <Grid container spacing={3}>
         {products.length === 0 ? (
           <Typography variant="body1" align="center" sx={{ width: "100%", color: "#5D4037" }}>
             No products found for this category.
           </Typography>
         ) : (
           products.map((product) => (
-            <Grid item xs={12} sm={6} md={4} key={product._id}>
+            <Grid item xs={12} sm={6} md={4} lg={3} key={product._id}>
               <HoverCard
                 product={product}
                 onClick={() => handleCardClick(product)}
@@ -346,6 +395,7 @@ const ProductList = () => {
         </Modal>
       )}
     </Container>
+    </>
   );
 };
 
@@ -354,37 +404,90 @@ const HoverCard = ({ product, onClick }) => {
     <Card
       onClick={onClick}
       sx={{
-        borderRadius: "10px",
+        borderRadius: "12px",
+        height: '400px',
+        display: 'flex',
+        flexDirection: 'column',
         transition: "transform 0.3s, box-shadow 0.3s",
+        backgroundColor: '#FFFFFF',
         "&:hover": {
-          transform: "scale(1.05)",
-          boxShadow: "0 4px 15px rgba(0, 0, 0, 0.2)",
+          transform: "scale(1.03)",
+          boxShadow: "0 8px 20px rgba(93, 64, 55, 0.2)",
         },
       }}
     >
-      <CardActionArea>
-        <CardMedia
-          component="img"
-          height="140"
-          image={`http://localhost:3001/uploads/${product.images[0]}`}
-          alt={product.productName}
-          sx={{ borderTopLeftRadius: "10px", borderTopRightRadius: "10px" }}
-        />
-        <CardContent>
-          <Typography variant="h6" component="div" sx={{ color: "#5D4037" }}>
+      <CardActionArea sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ 
+          height: '250px',
+          width: '100%',
+          overflow: 'hidden',
+          position: 'relative'
+        }}>
+          <CardMedia
+            component="img"
+            sx={{
+              height: '100%',
+              width: '100%',
+              objectFit: 'cover',
+              borderTopLeftRadius: "12px",
+              borderTopRightRadius: "12px",
+            }}
+            image={`http://localhost:3001/uploads/${product.images[0]}`}
+            alt='No Image for this Product'
+          />
+        </Box>
+        <CardContent sx={{ 
+          flexGrow: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          padding: '16px',
+          background: 'linear-gradient(to right, #FFF3E0, #FFE0B2)',
+          borderBottomLeftRadius: '12px',
+          borderBottomRightRadius: '12px',
+          width: '100%',
+          alignItems: 'center'
+        }}>
+          <Typography 
+            variant="h6" 
+            component="div" 
+            sx={{ 
+              color: "#5D4037",
+              fontSize: '1.1rem',
+              fontWeight: 600,
+              mb: 1,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+            }}
+          >
             {product.productName}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Price: ${product.price.toFixed(2)}
-          </Typography>
-          <Chip
-            label={product.category}
-            sx={{
-              mt: 1,
-              backgroundColor: "#FFB300",
-              color: "#fff",
-            }}
-          />
+          <Box>
+            <Typography 
+              variant="body1" 
+              sx={{ 
+                color: "#5D4037",
+                fontWeight: 500,
+                mb: 1
+              }}
+            >
+              ${product.price.toFixed(2)}
+            </Typography>
+            <Chip
+              label={product.category}
+              sx={{
+                backgroundColor: "#FFB300",
+                color: "#fff",
+                fontWeight: 500,
+                '&:hover': {
+                  backgroundColor: "#FFA000"
+                }
+              }}
+            />
+          </Box>
         </CardContent>
       </CardActionArea>
     </Card>

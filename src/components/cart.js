@@ -13,13 +13,17 @@ function Cart() {
         phoneNumber: '',
     });
     const [error, setError] = useState('');
-
+    const authToken = sessionStorage.getItem('authToken');
     useEffect(() => {
         const userID = localStorage.getItem('userID'); // Assuming userID is stored in localStorage
 
         const fetchCartItems = async () => {
             try {
-                const response = await fetch(`http://localhost:3001/cart/${userID}`);
+                const response = await fetch(`http://localhost:3001/cart/${userID}`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
                 const data = await response.json();
                 setCartItems(data.products); // Assuming 'products' contains the array of cart items
             } catch (error) {
@@ -32,16 +36,18 @@ function Cart() {
 
     const removeFromCart = async (productID) => {
         try {
-            setRefreshPage(!refreshPage)
+            console.log('productID: ', productID);
             const userID = localStorage.getItem('userID');
             const response = await fetch(`http://localhost:3001/cart/${userID}/remove/${productID}`, {
                 method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
             });
-            console.log(response);
             if (response.ok) {
                 const updatedCart = cartItems.filter(cartItem => cartItem.productID !== productID);
                 setCartItems(updatedCart);
-                // fetchCartItems();
+                setRefreshPage(prev => !prev);
             } else {
                 console.error('Failed to remove item from cart');
             }
@@ -105,6 +111,7 @@ function Cart() {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
                     },
                     body: JSON.stringify({ userID }), // Sending userID in the request body
                 });
@@ -140,12 +147,14 @@ function Cart() {
     const shippingCharges = 200;
 
     return (
-        <div className="container mt-5">
-            <h2 className="mb-4"><strong>Your Cart</strong></h2>
+        <div className="container mt-5 cart-container">
+            <h2 className="mb-4 cart-title">Your Cart</h2>
             <div className="row">
                 <div className="col-md-8">
-                    {cartItems == undefined ? (
-                        <p>Your cart is empty.</p>
+                    {!cartItems || cartItems.length === 0 ? (
+                        <div className="empty-cart">
+                            <p>Your cart is empty.</p>
+                        </div>
                     ) : (
                         cartItems?.map((item, index) => (
                             <div key={index} className="card cart-item-card mb-3">
@@ -159,7 +168,7 @@ function Cart() {
                                             <p className="card-text"><strong>Price:</strong> Rs {item.price}</p>
                                             <p className="card-text"><strong>Shop:</strong> {item.shopName}</p>
                                             <p className="card-text"><strong>Address:</strong> {item.address}</p>
-                                            <button className="btn btn-danger btn-sm" onClick={() => removeFromCart(item.productID._id)}>Remove</button> {/* Reduced button size */}
+                                            <button className="btn btn-danger btn-sm" onClick={() => removeFromCart(item?.productID)}>Remove</button> {/* Reduced button size */}
                                         </div>
                                     </div>
                                 </div>
