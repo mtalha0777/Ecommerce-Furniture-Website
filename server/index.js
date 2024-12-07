@@ -6,6 +6,7 @@ const path = require('path');
 const jwt = require("jsonwebtoken");
 require('dotenv').config();
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+console.log('Stripe initialized:', !!stripe);
 // Models
 const eappmodel = require('./model/user');
 const Bed = require('./model/bed');
@@ -272,18 +273,25 @@ app.post('/search', async (req, res) => {
 
 
 // Order Routes
-app.post('/orders', async (req, res) => {
+app.post('/orders', authenticateToken, async (req, res) => {
     const orderDetails = req.body;
 
     try {
         // Create the order in the database
-        const newOrder = new Order(orderDetails);
+        const newOrder = new Order({
+            ...orderDetails,
+            paymentStatus: 'paid', // Add payment status
+            paymentDate: new Date()
+        });
         await newOrder.save();
 
-        // Clear the user's cart after successful order placement
-        await Cart.deleteMany({ userID: orderDetails.userID }); // Clear the cart by userID
+        // Clear the user's cart
+        await Cart.deleteMany({ userID: orderDetails.userID });
 
-        res.status(201).json({ message: 'Order placed successfully.' });
+        res.status(201).json({ 
+            message: 'Order placed successfully.',
+            order: newOrder
+        });
     } catch (error) {
         console.error('Error placing order:', error);
         res.status(500).json({ message: 'Server error. Please try again later.' });
@@ -490,16 +498,27 @@ app.post('/productsByShop', (req, res) => {
 app.post('/create-payment-intent', authenticateToken, async (req, res) => {
     try {
         const { amount } = req.body;
-        console.log('Received amount:', amount);
+        
+        // Create a PaymentIntent
         const paymentIntent = await stripe.paymentIntents.create({
-            amount,
+            amount: Math.round(amount * 100), // convert to cents
             currency: 'usd',
+            payment_method_types: ['card'],
+            metadata: {
+                integration_check: 'accept_a_payment',
+            },
         });
-        console.log('Payment Intent created:', paymentIntent.id);
-        res.send({ clientSecret: paymentIntent.client_secret });
-    } catch (err) {
-        console.error('Error creating payment intent:', err);
-        res.status(500).send({ error: err.message });
+
+        res.json({
+            clientSecret: paymentIntent.client_secret,
+            amount: amount
+        });
+    } catch (error) {
+        console.error('Error creating payment intent:', error);
+        res.status(500).json({ 
+            error: 'Failed to create payment intent',
+            details: error.message 
+        });
     }
 });
 
@@ -1050,6 +1069,25 @@ app.put('/updateProduct', authenticateToken, (req, res) => {
             });
         }
     });
+});
+
+// Delete a favorite item
+app.delete('/favorites/:favoriteId', authenticateToken, async (req, res) => {
+    try {
+        const deletedFavorite = await Favorite.findByIdAndDelete(req.params.favoriteId);
+        
+        if (!deletedFavorite) {
+            return res.status(404).json({ message: 'Favorite item not found' });
+        }
+
+        res.status(200).json({ 
+            message: 'Favorite item removed successfully',
+            deletedFavorite 
+        });
+    } catch (error) {
+        console.error('Error removing favorite:', error);
+        res.status(500).json({ message: 'Server error occurred' });
+    }
 });
 
 app.listen(3001, () => {

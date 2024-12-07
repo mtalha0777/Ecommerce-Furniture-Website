@@ -19,7 +19,7 @@ import {
   TextField,
   CircularProgress,
 } from "@mui/material";
-import { ArrowBackIos, ArrowForwardIos, Edit, AddAPhoto } from "@mui/icons-material";
+import { ArrowBackIos, ArrowForwardIos, Edit, AddAPhoto, Delete } from "@mui/icons-material";
 
 const UserProfile = () => {
   const [favorites, setFavorites] = useState([]);
@@ -157,6 +157,33 @@ const UserProfile = () => {
       setIsUploading(false);
     }
   };
+
+  const handleDeleteFavorite = async (favoriteId) => {
+    try {
+      const response = await axios.delete(
+        `http://localhost:3001/favorites/${favoriteId}`,
+        {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        }
+      );
+      
+      setFavorites(prevFavorites => 
+        prevFavorites.filter(fav => fav._id !== favoriteId)
+      );
+      
+      setUpdateMessage({ 
+        type: 'success', 
+        text: 'Item removed from favorites' 
+      });
+    } catch (error) {
+      console.error('Error removing favorite:', error);
+      setUpdateMessage({ 
+        type: 'error', 
+        text: 'Failed to remove item from favorites' 
+      });
+    }
+  };
+
   return (
     <>
       <Typography variant="h4" component="h2" align="center" gutterBottom
@@ -250,59 +277,76 @@ const UserProfile = () => {
           ) : (
             favorites?.map((favorite) => (
               <Grid item xs={12} sm={6} md={4} key={favorite._id}>
-                <Card sx={{ 
-                  maxWidth: 345, 
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  backgroundColor: '#FFFFFF',
-                  transition: 'transform 0.2s',
-                  '&:hover': {
-                    transform: 'scale(1.02)',
-                    boxShadow: 3
-                  }
-                }}>
-                  <CardActionArea sx={{ flexGrow: 1 }}>
-                    <CardMedia
-                      component="img"
-                      height="140"
-                      image={favorite.product?.images?.[0] 
-                        ? `http://localhost:3001/uploads/${favorite.product.images[0]}`
-                        : '/placeholder-image.jpg'} // Add a placeholder image to your public folder
-                      alt={favorite.product?.productName || favorite.productName}
-                      sx={{
-                        objectFit: 'cover',
-                        backgroundColor: '#f5f5f5'
-                      }}
-                    />
-                    <CardContent>
-                      <Typography gutterBottom variant="h6" component="div" sx={{ 
-                        color: '#5D4037',
-                        fontWeight: 500,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}>
-                        {favorite.product?.productName || favorite.productName}
-                      </Typography>
-                      {favorite.product?.price && (
-                        <Typography variant="body2" sx={{ color: '#FF8F00', fontWeight: 500 }}>
-                          ${favorite.product.price.toLocaleString()}
+                <Box sx={{ position: 'relative' }}>
+                  <Card sx={{ 
+                    maxWidth: 345, 
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    backgroundColor: '#FFFFFF',
+                    transition: 'transform 0.2s',
+                    '&:hover': {
+                      transform: 'scale(1.02)',
+                      boxShadow: 3
+                    }
+                  }}>
+                    <CardActionArea sx={{ flexGrow: 1 }}>
+                      <CardMedia
+                        component="img"
+                        height="140"
+                        image={favorite.product?.images?.[0] 
+                          ? `http://localhost:3001/uploads/${favorite.product.images[0]}`
+                          : '/placeholder-image.jpg'} // Add a placeholder image to your public folder
+                        alt={favorite.product?.productName || favorite.productName}
+                        sx={{
+                          objectFit: 'cover',
+                          backgroundColor: '#f5f5f5'
+                        }}
+                      />
+                      <CardContent>
+                        <Typography gutterBottom variant="h6" component="div" sx={{ 
+                          color: '#5D4037',
+                          fontWeight: 500,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {favorite.product?.productName || favorite.productName}
                         </Typography>
-                      )}
-                      {favorite.product?.category && (
-                        <Typography variant="body2" color="text.secondary">
-                          Category: {favorite.product.category}
-                        </Typography>
-                      )}
-                      {favorite.product?.shopName && (
-                        <Typography variant="body2" color="text.secondary">
-                          Shop: {favorite.product.shopName}
-                        </Typography>
-                      )}
-                    </CardContent>
-                  </CardActionArea>
-                </Card>
+                        {favorite.product?.price && (
+                          <Typography variant="body2" sx={{ color: '#FF8F00', fontWeight: 500 }}>
+                            ${favorite.product.price.toLocaleString()}
+                          </Typography>
+                        )}
+                        {favorite.product?.category && (
+                          <Typography variant="body2" color="text.secondary">
+                            Category: {favorite.product.category}
+                          </Typography>
+                        )}
+                        {favorite.product?.shopName && (
+                          <Typography variant="body2" color="text.secondary">
+                            Shop: {favorite.product.shopName}
+                          </Typography>
+                        )}
+                      </CardContent>
+                    </CardActionArea>
+                  </Card>
+                  <IconButton 
+                    onClick={() => handleDeleteFavorite(favorite._id)}
+                    sx={{ 
+                      position: 'absolute',
+                      right: 8,
+                      top: 8,
+                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                      zIndex: 2,
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 0, 0, 0.1)'
+                      }
+                    }}
+                  >
+                    <Delete sx={{ color: '#d32f2f' }} />
+                  </IconButton>
+                </Box>
               </Grid>
             ))
           )}

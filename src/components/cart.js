@@ -1,6 +1,235 @@
 import React, { useState, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './cart.css';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+
+// Initialize Stripe with your publishable key
+const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY);
+console.log('pkey',process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY);
+
+// Create a new CheckoutForm component
+function CheckoutForm({ totalAmount, handleSubmit }) {
+    const stripe = useStripe();
+    const elements = useElements();
+    const [error, setError] = useState(null);
+    const [processing, setProcessing] = useState(false);
+    const [success, setSuccess] = useState(false);
+    const [formData, setFormData] = useState({
+        name: '',
+        address: '',
+        postalCode: '',
+        phoneNumber: '',
+        paymentMethod: 'card'
+    });
+
+    const handleFormChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prevData => ({
+            ...prevData,
+            [name]: value
+        }));
+    };
+
+    const handlePaymentSubmit = async (e) => {
+        e.preventDefault();
+        setProcessing(true);
+        setError(null);
+
+        // Validate form data
+        if (!formData.name || !formData.address || !formData.postalCode || !formData.phoneNumber) {
+            setError('Please fill in all required fields');
+            setProcessing(false);
+            return;
+        }
+
+        try {
+            if (formData.paymentMethod === 'card') {
+                if (!stripe || !elements) {
+                    setProcessing(false);
+                    return;
+                }
+
+                const response = await fetch('http://localhost:3001/create-payment-intent', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
+                    },
+                    body: JSON.stringify({ 
+                        amount: totalAmount
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to create payment intent');
+                }
+
+                const data = await response.json();
+                
+                if (!data.clientSecret) {
+                    throw new Error('No client secret received');
+                }
+
+                const result = await stripe.confirmCardPayment(data.clientSecret, {
+                    payment_method: {
+                        card: elements.getElement(CardElement),
+                    }
+                });
+
+                if (result.error) {
+                    throw new Error(result.error.message);
+                }
+
+                // Include payment intent ID and form data in order submission
+                await handleSubmit({
+                    ...formData,
+                    paymentIntentID: result.paymentIntent.id,
+                    paymentStatus: 'paid',
+                    paymentDate: new Date().toISOString()
+                });
+            } else {
+                // Handle cash on delivery
+                await handleSubmit({
+                    ...formData,
+                    paymentStatus: 'pending',
+                    paymentDate: null
+                });
+            }
+            setSuccess(true);
+        } catch (err) {
+            console.error('Payment error:', err);
+            setError(err.message);
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    if (success) {
+        return (
+            <div className="alert alert-success">
+                {formData.paymentMethod === 'card' 
+                    ? 'Payment successful! Your order has been placed.'
+                    : 'Order placed successfully! Please pay on delivery.'}
+            </div>
+        );
+    }
+
+    return (
+        <form onSubmit={handlePaymentSubmit}>
+            <div className="mb-3">
+                <label className="form-label">Name*</label>
+                <input
+                    type="text"
+                    className="form-control"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleFormChange}
+                    required
+                />
+            </div>
+            <div className="mb-3">
+                <label className="form-label">Address*</label>
+                <input
+                    type="text"
+                    className="form-control"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleFormChange}
+                    required
+                />
+            </div>
+            <div className="mb-3">
+                <label className="form-label">Postal Code*</label>
+                <input
+                    type="text"
+                    className="form-control"
+                    name="postalCode"
+                    value={formData.postalCode}
+                    onChange={handleFormChange}
+                    required
+                />
+            </div>
+            <div className="mb-3">
+                <label className="form-label">Phone Number*</label>
+                <input
+                    type="tel"
+                    className="form-control"
+                    name="phoneNumber"
+                    value={formData.phoneNumber}
+                    onChange={handleFormChange}
+                    required
+                />
+            </div>
+            <div className="mb-3">
+                <label className="form-label"><strong>Payment Method*</strong></label>
+                <div className="d-flex gap-3">
+                    <div className="form-check">
+                        <input
+                            type="radio"
+                            className="form-check-input"
+                            name="paymentMethod"
+                            value="card"
+                            checked={formData.paymentMethod === 'card'}
+                            onChange={handleFormChange}
+                            id="cardPayment"
+                        />
+                        <label className="form-check-label" htmlFor="cardPayment">
+                            Credit/Debit Card
+                        </label>
+                    </div>
+                    <div className="form-check">
+                        <input
+                            type="radio"
+                            className="form-check-input"
+                            name="paymentMethod"
+                            value="cod"
+                            checked={formData.paymentMethod === 'cod'}
+                            onChange={handleFormChange}
+                            id="codPayment"
+                        />
+                        <label className="form-check-label" htmlFor="codPayment">
+                            Cash on Delivery
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            {formData.paymentMethod === 'card' && (
+                <div className="mb-3">
+                    <label className="form-label"><strong>Card Details*</strong></label>
+                    <div className="form-control p-3">
+                        <CardElement options={{
+                            style: {
+                                base: {
+                                    fontSize: '16px',
+                                    color: '#424770',
+                                    '::placeholder': {
+                                        color: '#aab7c4',
+                                    },
+                                },
+                                invalid: {
+                                    color: '#9e2146',
+                                },
+                            },
+                        }}/>
+                    </div>
+                </div>
+            )}
+
+            {error && <div className="alert alert-danger">{error}</div>}
+            <button 
+                type="submit" 
+                className="btn btn-primary"
+                disabled={formData.paymentMethod === 'card' ? (!stripe || processing) : processing}
+            >
+                {processing ? 'Processing...' : formData.paymentMethod === 'card' 
+                    ? `Pay $${totalAmount}`
+                    : 'Place Order'}
+            </button>
+        </form>
+    );
+}
 
 function Cart() {
     const [cartItems, setCartItems] = useState([]);
@@ -69,80 +298,53 @@ function Cart() {
         }));
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-    
-        if (!formData.name || !formData.address || !formData.postalCode || !formData.phoneNumber) {
-            setError('Please fill in all required fields.');
-            return;
-        }
-    
-        const userID = localStorage.getItem('userID'); // Ensure userID is retrieved correctly
+    const handleSubmit = async (formDetails) => {
+        const userID = localStorage.getItem('userID');
         const orderDetails = {
-            name: formData.name,
-            address: formData.address,
-            postalCode: formData.postalCode,
-            phoneNumber: formData.phoneNumber,
-            paymentMethod: formData.paymentMethod,
+            ...formDetails,
+            paymentMethod: 'card',
             products: cartItems?.map(item => ({
                 name: item.productName,
                 price: item.price,
             })),
             totalAmount: calculateTotalAmount(),
-            shippingCharges: 5,
-            grandTotal: calculateTotalAmount() + 5,
+            shippingCharges: 200,
+            grandTotal: calculateTotalAmount() + 200,
         };
     
         try {
-            // Sending the order details to the API
             const response = await fetch('http://localhost:3001/orders', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
                 },
                 body: JSON.stringify(orderDetails),
             });
     
-            if (response.ok) {
-                console.log('Order successfully stored in the database');
-                
-                // Clear the user's cart after the order has been successfully placed
-                const clearCartResponse = await fetch('http://localhost:3001/clearcart', {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}`
-                    },
-                    body: JSON.stringify({ userID }), // Sending userID in the request body
-                });
-    
-                if (clearCartResponse.ok) {
-                    console.log('Cart cleared successfully.');
-                } else {
-                    console.error('Failed to clear the cart.');
-                }
-    
-                // Resetting the cart and form data
-                setCartItems([]);
-                setFormData({
-                    name: '',
-                    address: '',
-                    postalCode: '',
-                    paymentMethod: 'easypaisa',
-                    phoneNumber: '',
-                });
-                setError('');
-            } else {
-                setError('Failed to store the order.');
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to create order');
             }
+    
+            // Clear the cart
+            await fetch('http://localhost:3001/clearcart', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
+                },
+                body: JSON.stringify({ userID }),
+            });
+    
+            // Update local state
+            setCartItems([]);
+            setRefreshPage(prev => !prev);
         } catch (error) {
-            setError('Error submitting the order.');
-            console.error('Error:', error);
+            console.error('Error creating order:', error);
+            throw new Error('Failed to complete order');
         }
-    
-        setRefreshPage(!refreshPage);
-    };    
-    
+    };
 
     const shippingCharges = 200;
 
@@ -188,107 +390,12 @@ function Cart() {
                         </div>
 
                         <h5><strong>Shipping Details</strong></h5>
-                        <form onSubmit={handleSubmit}>
-                            {/* Name */}
-                            <div className="mb-3">
-                                <label htmlFor="name" className="form-label"><strong>Name</strong></label>
-                                <input
-                                    type="text"
-                                    className="form-control"
-                                    id="name"
-                                    name="name"
-                                    value={formData.name}
-                                    onChange={handleFormChange}
-                                    required
-                                />
-                            </div>
-
-                            {/* Address */}
-                            <div className="mb-3">
-                                <label htmlFor="address" className="form-label"><strong>Address</strong></label>
-                                <input
-                                    type="text"
-                                    className="form-control"
-                                    id="address"
-                                    name="address"
-                                    value={formData.address}
-                                    onChange={handleFormChange}
-                                    required
-                                />
-                            </div>
-
-                            {/* Postal Code */}
-                            <div className="mb-3">
-                                <label htmlFor="postalCode" className="form-label"><strong>Postal Code</strong></label>
-                                <input
-                                    type="text"
-                                    className="form-control"
-                                    id="postalCode"
-                                    name="postalCode"
-                                    value={formData.postalCode}
-                                    onChange={handleFormChange}
-                                    required
-                                />
-                            </div>
-
-                            {/* Payment Method */}
-                            <div className="mb-3">
-                                <label className="form-label"><strong>Payment Method</strong></label>
-                                <div className="form-check">
-                                    <input
-                                        className="form-check-input"
-                                        type="radio"
-                                        id="easypaisa"
-                                        name="paymentMethod"
-                                        value="easypaisa"
-                                        checked={formData.paymentMethod === 'easypaisa'}
-                                        onChange={handleFormChange}
-                                    />
-                                    <label className="form-check-label" htmlFor="easypaisa">
-                                        <strong>Easypaisa</strong>
-                                    </label>
-                                </div>
-                                <div className="form-check">
-                                    <input
-                                        className="form-check-input"
-                                        type="radio"
-                                        id="jazzcash"
-                                        name="paymentMethod"
-                                        value="jazzcash"
-                                        checked={formData.paymentMethod === 'jazzcash'}
-                                        onChange={handleFormChange}
-                                    />
-                                    <label className="form-check-label" htmlFor="jazzcash">
-                                        <strong>JazzCash</strong>
-                                    </label>
-                                </div>
-                            </div>
-
-                            {/* Phone Number */}
-                            {formData.paymentMethod && (
-                                <div className="mb-3">
-                                    <label htmlFor="phoneNumber" className="form-label">
-                                        <strong>{formData.paymentMethod === 'easypaisa' ? 'Easypaisa' : 'JazzCash'} Phone Number</strong>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        className="form-control"
-                                        id="phoneNumber"
-                                        name="phoneNumber"
-                                        value={formData.phoneNumber}
-                                        onChange={handleFormChange}
-                                        required
-                                    />
-                                </div>
-                            )}
-
-                            {/* Error Alert */}
-                            {error && <div className="alert alert-danger">{error}</div>}
-
-                            {/* Submit Button */}
-                            <button type="submit" className="btn btn-primary">Place Order</button>
-                        </form>
-
+                        <Elements stripe={stripePromise}>
+                            <CheckoutForm 
+                                totalAmount={calculateTotalAmount() + shippingCharges}
+                                handleSubmit={handleSubmit}
+                            />
+                        </Elements>
                     </div>
                 </div>
             </div>
