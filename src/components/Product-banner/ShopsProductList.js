@@ -1,10 +1,10 @@
 import React from 'react';
 import { Grid, Typography, Card, CardActionArea, CardMedia, CardContent } from '@mui/material';
 
-const ProductList = ({ products, handleCardClick }) => {
+const ShopsProductList = ({ products, handleCardClick }) => {
   return (
     <Grid container spacing={3}>
-      {products.length === 0 ? (
+      {products?.length === 0 ? (
         <Typography
           variant="body1"
           align="left"
@@ -19,7 +19,7 @@ const ProductList = ({ products, handleCardClick }) => {
           No products found for this shop.
         </Typography>
       ) : (
-        products.map((product) => (
+        products?.map((product) => (
           <Grid item xs={12} sm={6} md={4} key={product._id}>
             <Card
               sx={{
@@ -92,4 +92,4 @@ const ProductList = ({ products, handleCardClick }) => {
   );
 };
 
-export default ProductList; 
+export default ShopsProductList; 

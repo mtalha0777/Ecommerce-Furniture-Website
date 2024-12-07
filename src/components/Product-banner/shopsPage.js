@@ -3,7 +3,7 @@ import axios from "axios";
 import { useLocation } from "react-router-dom";
 import { Typography, Container, Box, CircularProgress, Divider } from "@mui/material";
 import ShopDetails from './ShopDetails';
-import ProductList from './ProductList';
+import ShopsProductList from './ShopsProductList';
 import ProductModal from './ProductModal';
 
 const ShopsPage = () => {
@@ -306,7 +306,7 @@ const ShopsPage = () => {
         >
           Your added Products
         </Typography>
-        <ProductList
+        <ShopsProductList
           products={products}
           handleCardClick={handleCardClick}
         />
