@@ -4,7 +4,7 @@ import '../header/header.css';
 import logo from '../../assets/images/logo.png';
 import { Select } from '../selectDrop/select'; // Ensure correct import
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { Ballot, SearchOutlined, ShoppingBag, AdminPanelSettings } from '@mui/icons-material';
+import { Ballot, SearchOutlined, ShoppingBag, AdminPanelSettings, Home } from '@mui/icons-material';
 import axios from 'axios';
 import Modal from './WishlistModal';
 import { Button } from 'react-bootstrap';
@@ -26,7 +26,7 @@ const Header = () => {
         'Settings',
         'Log Out',
     ]);
-    const [cartItems, setCartItems] = useState(0);
+    const [cartItems, setCartItems] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [user, setUser] = useState(null);
     const [shops, setShops] = useState([]);
@@ -49,7 +49,7 @@ const Header = () => {
 
     useEffect(() => {
         const userID = localStorage.getItem('userID');
-
+        
         const fetchCartItems = async () => {
             try {
                 const response = await fetch(`http://localhost:3001/cart/${userID}`, {
@@ -58,14 +58,16 @@ const Header = () => {
                     }
                 });
                 const data = await response.json();
-                setCartItems(data.products);
+                setCartItems(data.products || []);
             } catch (error) {
                 console.error("Error fetching cart items:", error);
             }
         };
 
-        fetchCartItems();
-    }, []);
+        if (userID && authToken) {
+            fetchCartItems();
+        }
+    }, []); // Empty dependency array means it only runs once on mount
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -83,27 +85,6 @@ const Header = () => {
     useEffect(() => {
         const storedUserID = localStorage.getItem('userID');
         
-        const fetchShops = async () => {
-            try {
-                if (storedUserID) {
-                    const shopResponse = await axios.post(
-                        'http://localhost:3001/shop',
-                        { userID: storedUserID },
-                        {
-                            headers: {
-                                'Authorization': `Bearer ${authToken}`
-                            }
-                        }
-                    );
-                    const shopID = shopResponse.data.shops[0];
-                    setShops(shopID);
-                    localStorage.setItem('shopID', shopID._id);
-                }
-            } catch (error) {
-                console.error('Error fetching shops:', error);
-            }
-        };
-
         const fetchFavorites = async () => {
             try {
                 if (storedUserID) {
@@ -115,16 +96,17 @@ const Header = () => {
                             }
                         }
                     );
-                    setFavorites(favoritesResponse.data);
+                    setFavorites(favoritesResponse.data || []);
                 }
             } catch (error) {
                 console.error('Error fetching favorites:', error);
             }
         };
 
-        fetchShops();
-        fetchFavorites();
-    }, [authToken]);
+        if (storedUserID && authToken) {
+            fetchFavorites();
+        }
+    }, []); // Empty dependency array means it only runs once on mount
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -297,7 +279,8 @@ const Header = () => {
                                 '&:hover': {
                                     backgroundColor: '#FFE0B2'
                                 }
-                            }}>
+                            }}
+                            onClick={() => navigate('/profile')}>
                                 <img 
                                     src={favorite.product?.images?.[0] 
                                         ? `http://localhost:3001/uploads/${favorite.product.images[0]}`
@@ -339,6 +322,15 @@ const Header = () => {
         );
     };
 
+    // Add these methods to update cart and favorites counts
+    const updateCartCount = (newCount) => {
+        setCartItems(prevItems => [...prevItems, newCount]);
+    };
+
+    const updateFavoritesCount = (newCount) => {
+        setFavorites(prevFavorites => [...prevFavorites, newCount]);
+    };
+
     return (
         <header>
             <div className='container-fluid'>
@@ -372,20 +364,21 @@ const Header = () => {
                     <div className='col-sm-5 d-flex align-items-center justify-content-end'>
                         <ul className='list list-inline mb-0 headerTabs'>
                             {userRole === '3' && (
-                                <li className='list-inline-item' style={{ marginRight: '15px', marginTop: '8px' }}>
+                                <li className='list-inline-item'>
                                     <span onClick={() => navigate('/admin-dashboard')} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                         <AdminPanelSettings style={{ fontSize: '24px' }} />
                                         <span>Admin</span>
                                     </span>
                                 </li>
                             )}
-                            <li className='list-inline-item position-relative' 
-                                onClick={toggleWishlistDropdown} 
-                                style={{
-                                    cursor: 'pointer',
-                                    marginRight: '15px'
-                                }}>
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <li className='list-inline-item'>
+                                <span onClick={() => navigate('/home')} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                    <Home style={{ fontSize: '24px' }} />
+                                    <span>Home</span>
+                                </span>
+                            </li>
+                            <li className='list-inline-item position-relative'>
+                                <span onClick={toggleWishlistDropdown} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                     <div style={{ position: 'relative' }}>
                                         <span className='badge rounded-pill' style={{ position: 'absolute', top: '-8px', right: '-8px' }}>
                                             {favorites?.length ? favorites?.length : 0}
@@ -400,17 +393,15 @@ const Header = () => {
                                     </div>
                                 )}
                             </li>
-                            <li className='list-inline-item' style={{ marginLeft:'15px' }}>
-                                <Link to="/cart" style={{ textDecoration: 'none', color: 'inherit' }}>
-                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                        <div style={{ position: 'relative' }}>
-                                            <span className='badge rounded-pill' style={{ position: 'absolute', top: '-8px', right: '-8px' }}>
-                                                {cartItems?.length ? cartItems?.length : 0}
-                                            </span>
-                                            <ShoppingBag style={{ fontSize: '24px' }} />
-                                        </div>
-                                        <span>Cart</span>
-                                    </span>
+                            <li className='list-inline-item'>
+                                <Link to="/cart" style={{ textDecoration: 'none', color: 'inherit', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                    <div style={{ position: 'relative' }}>
+                                        <span className='badge rounded-pill' style={{ position: 'absolute', top: '-8px', right: '-8px' }}>
+                                            {cartItems?.length ? cartItems?.length : 0}
+                                        </span>
+                                        <ShoppingBag style={{ fontSize: '24px' }} />
+                                    </div>
+                                    <span>Cart</span>
                                 </Link>
                             </li>
                         </ul>

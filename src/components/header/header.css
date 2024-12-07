@@ -224,3 +224,26 @@ h3 {
     margin: 0;
     width: 100%;
 }
+
+.headerTabs {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.headerTabs .list-inline-item {
+    margin-right: 0 !important;
+    display: flex;
+    align-items: center;
+}
+
+.badge {
+    background-color: #ff8f00;
+    color: white;
+    font-size: 0.75rem;
+    min-width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
