@@ -29,7 +29,7 @@ const Header = () => {
     const [cartItems, setCartItems] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [user, setUser] = useState(null);
-    const [shops, setShops] = useState([]);
+    const [shops, setShops] = useState(null);
     const [favorites, setFavorites] = useState([]);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [wishlistDropdownOpen, setWishlistDropdownOpen] = useState(false);
@@ -129,6 +129,32 @@ const Header = () => {
         fetchUserData();
     }, [authToken]);
 
+    useEffect(() => {
+        const fetchShopData = async () => {
+            const userID = localStorage.getItem('userID');
+            if (userID) {
+                try {
+                    const response = await axios.post('http://localhost:3001/shop', 
+                        { userID },
+                        {
+                            headers: {
+                                'Authorization': `Bearer ${authToken}`
+                            }
+                        }
+                    );
+                    if (response.data.shops && response.data.shops.length > 0) {
+                        setShops(response.data.shops[0]); // Get the first shop
+                        localStorage.setItem('shopID', response.data.shops[0]._id); // Store shop ID
+                    }
+                } catch (error) {
+                    console.error('Error fetching shop data:', error);
+                }
+            }
+        };
+
+        fetchShopData();
+    }, [authToken]); // Add authToken as dependency
+
     const [selectedCategory, setSelectedCategory] = useState('All Categories'); // Track selected category
 
     const handleCategorySelect = (category) => {
@@ -198,9 +224,13 @@ const Header = () => {
     };
 
     const handleShopClick = () => {
-        if(userRole == 2){
-            navigate('/shopPage', { state: { shop: shops } });
-        }else{
+        if (userRole === '2') {
+            if (shops) {
+                navigate('/shopPage', { state: { shop: shops } });
+            } else {
+                navigate('/profile');
+            }
+        } else {
             navigate('/profile');
         }
     };
@@ -232,7 +262,6 @@ const Header = () => {
         navigate('/home');
     };
 
-    console.log('userData: ', userData?.profilePicture);
     const renderWishlistItems = () => {
         return (
             <div className="wishlist-dropdown-container" style={{
@@ -409,9 +438,9 @@ const Header = () => {
                             <span onClick={toggleDropdown} style={{ cursor: 'pointer' }}>
                                 <img
                                     src={
-                                        userRole !== '1' && userData?.profilePicture
+                                        userRole !== '2' && userData?.profilePicture
                                             ? `http://localhost:3001/${userData.profilePicture}`
-                                            : userRole === '2' && shops.profilePicture
+                                            : userRole === '2' && shops?.profilePicture
                                                 ? `http://localhost:3001/${shops.profilePicture}`
                                                 : 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'
                                     }
@@ -424,7 +453,7 @@ const Header = () => {
                             </span>
                             {dropdownOpen && (
                                 <div className="dropdown-menu" style={{ display: 'block', marginRight:'2%', cursor:'pointer' }} ref={dropdownRef}>
-                                    <span className="dropdown-item" onClick={handleShopClick}>{shops.shopName? shops.shopName : 'My Profile'}</span>
+                                    <span className="dropdown-item" onClick={handleShopClick}>{shops?.shopName? shops.shopName : 'My Profile'}</span>
                                     <button onClick={() => { navigate('/') }} className="dropdown-item">Logout</button>
                                 </div>
                             )}

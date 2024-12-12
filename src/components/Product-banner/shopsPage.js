@@ -36,10 +36,12 @@ const ShopsPage = () => {
             shopID: shop._id,
           }
         );
-        setProducts(response.data.products);
+        setProducts(response.data.products || []);
+        setError(null);
       } catch (err) {
         console.error("Failed to fetch products:", err);
-        setError(err.response?.data?.error || "Failed to load products");
+        setProducts([]);
+        setError("Failed to load products");
       } finally {
         setLoading(false);
       }
@@ -258,10 +260,6 @@ const ShopsPage = () => {
     return <div>Loading...</div>;
   }
 
-  if (error) {
-    return <div>{error}</div>;
-  }
-
   return (
     <>
       <Typography
@@ -306,10 +304,20 @@ const ShopsPage = () => {
         >
           Your added Products
         </Typography>
-        <ShopsProductList
-          products={products}
-          handleCardClick={handleCardClick}
-        />
+        {error ? (
+          <Typography align="center" sx={{ color: "#C62828" }}>
+            {error}
+          </Typography>
+        ) : products.length > 0 ? (
+          <ShopsProductList
+            products={products}
+            handleCardClick={handleCardClick}
+          />
+        ) : (
+          <Typography align="center" sx={{ color: "#5D4037" }}>
+            No products found for this shop.
+          </Typography>
+        )}
         {selectedProduct && (
           <ProductModal
             openModal={openModal}
