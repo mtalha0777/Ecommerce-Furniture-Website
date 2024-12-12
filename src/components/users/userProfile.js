@@ -147,6 +147,11 @@ const UserProfile = () => {
         }
       );
 
+      setEditedUser(prev => ({
+        ...prev,
+        profilePicture: response.data.profilePicture
+      }));
+
       setUpdateMessage({ type: 'success', text: 'Profile picture updated successfully' });
     } catch (error) {
       setUpdateMessage({ 

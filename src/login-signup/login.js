@@ -15,6 +15,12 @@ function Login() {
     const [showPassword, setShowPassword] = useState(false);
     const navigate = useNavigate();
 
+    // Add useEffect to clear localStorage when component mounts
+    React.useEffect(() => {
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('shopID');
+        localStorage.removeItem('userID');
+    }, []);
 
     // axios.get('http://localhost:3001/check-auth')
     // .then(response => {
@@ -29,10 +35,13 @@ function Login() {
             const result = await axios.post('http://localhost:3001/login', { email, password });
             if (result.data.message === "Success") {
                 const userID = result.data.userID;
-                // Store userID in localStorage
+                // Store values in localStorage
                 sessionStorage.setItem('authToken', result.data.token);
                 localStorage.setItem('userID', userID);
                 localStorage.setItem('userRole', result.data.role);
+                if (result.data.shopID) {
+                    localStorage.setItem('shopID', result.data.shopID);
+                }
                 if (result.data.role == 3) {
                     navigate('/admin-dashboard', { state: { userID } });
                 } else if (result.data.role == 2 && result.data.loginStatus === true) {

@@ -151,8 +151,22 @@ const SearchResults = () => {
   };
 
   return (
-    <Container sx={{ padding: '20px', backgroundColor: '#F9EBA8' }}>
-      <Typography variant="h4" component="h2" align="center" gutterBottom>
+    <Container sx={{ 
+      padding: '20px', 
+      backgroundColor: '#FFF3E0',  // Changed to warm cream background
+      minHeight: '100vh'
+    }}>
+      <Typography 
+        variant="h4" 
+        component="h2" 
+        align="center" 
+        gutterBottom
+        sx={{
+          color: '#5D4037',  // Warm brown color
+          fontFamily: '"Playfair Display", serif',  // More elegant, warm font
+          marginBottom: '2rem'
+        }}
+      >
         Search Results
       </Typography>
       {searchResults && searchResults.length > 0 ? (
@@ -161,35 +175,64 @@ const SearchResults = () => {
             <Grid item xs={12} sm={6} md={4} key={product._id}>
               <Card
                 sx={{
+                  backgroundColor: '#FFFFFF',
                   "&:hover": {
-                    transform: "scale(1.05)",
-                    boxShadow: "0 8px 16px rgba(0, 0, 0, 0.2)",
+                    transform: "scale(1.02)",  // Reduced scale for subtlety
+                    boxShadow: '0 8px 16px rgba(93, 64, 55, 0.15)',  // Warmer shadow
                   },
                   transition: "transform 0.3s ease",
-                  borderRadius: "10px",
+                  borderRadius: "15px",  // Increased border radius
+                  border: '1px solid rgba(93, 64, 55, 0.1)',  // Subtle warm border
+                  overflow: 'hidden'
                 }}
                 onClick={() => handleCardClick(product)} // Trigger modal on click
               >
                 <CardMedia
                   component="img"
                   height="200"
-                  image={`http://localhost:3001/uploads/${product.images[0]}`}
+                  image={product.images && product.images.length > 0 
+                    ? `http://localhost:3001/uploads/${product.images[0]}`
+                    : '/path/to/default-image.jpg'
+                  }
                   alt={product.productName}
+                  sx={{
+                    objectFit: 'cover',
+                    width: '100%',
+                    height: '200px', // Fixed height
+                    backgroundColor: '#f5f5f5',
+                    aspectRatio: '1', // Forces a square aspect ratio
+                  }}
                 />
-                <CardContent style={{ backgroundColor: '#ffc107' }}>
-                  <Typography gutterBottom variant="h5" component="div">
+                <CardContent style={{ 
+                  backgroundColor: '#FFFFFF',  // Clean white background
+                  padding: '1.5rem'
+                }}>
+                  <Typography 
+                    gutterBottom 
+                    variant="h5" 
+                    component="div"
+                    sx={{
+                      color: '#3E2723',  // Deep warm brown
+                      fontFamily: '"Playfair Display", serif'
+                    }}
+                  >
                     {product.productName}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography 
+                    variant="body2" 
+                    sx={{ color: '#5D4037' }}  // Warm brown text
+                  >
                     Price: ${product.price}
                   </Typography>
                   <Chip
                     label={product.category}
                     sx={{
                       mt: 1,
-                      backgroundColor: "#5C3A2A",
-                      color: "#FFFFFF",
-                      "&:hover": { backgroundColor: "#B86B14" },
+                      backgroundColor: '#8D6E63',  // Lighter warm brown
+                      color: '#FFF3E0',
+                      "&:hover": { backgroundColor: '#6D4C41' },
+                      borderRadius: '25px',  // More rounded
+                      fontFamily: '"Source Sans Pro", sans-serif'
                     }}
                   />
                 </CardContent>
@@ -220,16 +263,16 @@ const SearchResults = () => {
           <Fade in={openModal}>
             <Box
               sx={{
-                bgcolor: "#F9EBA8",
-                boxShadow: 24,
+                bgcolor: '#FFF3E0',  // Warm background
+                boxShadow: '0 8px 32px rgba(93, 64, 55, 0.2)',
                 p: 4,
                 maxWidth: 600,
                 mx: "auto",
                 my: "10%",
                 outline: "none",
-                borderRadius: "10px",
+                borderRadius: "20px",  // More rounded corners
                 position: "relative",
-                border: "2px solid #5C3A2A",
+                border: '1px solid rgba(93, 64, 55, 0.2)',  // Subtle warm border
               }}
             >
               <Box
@@ -244,8 +287,9 @@ const SearchResults = () => {
                   variant="h5"
                   component="h2"
                   sx={{
-                    color: "#5C3A2A",
-                    fontWeight: "bold",
+                    color: '#3E2723',  // Deep warm brown
+                    fontFamily: '"Playfair Display", serif',
+                    fontWeight: "600"
                   }}
                 >
                   {selectedProduct.productName}
@@ -333,7 +377,17 @@ const SearchResults = () => {
                 variant="contained"
                 color="primary"
                 onClick={handleCloseModal}
-                sx={{ mt: 3 }}
+                sx={{
+                  mt: 3,
+                  backgroundColor: '#8D6E63',
+                  '&:hover': {
+                    backgroundColor: '#6D4C41'
+                  },
+                  borderRadius: '25px',
+                  textTransform: 'none',
+                  padding: '8px 24px',
+                  fontFamily: '"Source Sans Pro", sans-serif'
+                }}
               >
                 Close
               </Button>
