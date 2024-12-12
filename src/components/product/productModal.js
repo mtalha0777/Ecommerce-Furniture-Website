@@ -29,7 +29,7 @@ const AddProductModal = ({ isOpen, onClose }) => {
     // Get shopID from local storage
     const shopID = localStorage.getItem('shopID');
     // Check required fields
-    if (!productName || !category || !price || !shopID || images.length === 0) {
+    if (!productName || !category || !price || images.length === 0) {
       setError("All fields are required, including images");
       return;
     }
