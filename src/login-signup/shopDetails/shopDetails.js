@@ -81,8 +81,14 @@ function ShopRegistration() {
       data.append("profilePicture", formData.profilePicture);
     }
 
+    // Get the token from localStorage
+    const token = sessionStorage.getItem('authToken');
+
     fetch("http://localhost:3001/createshop", {
       method: "POST",
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
       body: data,
     })
       .then((response) => {
