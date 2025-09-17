@@ -1,16 +1,38 @@
+import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { isTokenExpired } from '../utils/auth';
+import { supabase } from '../utils/supabaseClient';
 
 const ProtectedRoute = ({ children }) => {
-  const token = sessionStorage.getItem('authToken');
-  
-  if (!token || isTokenExpired(token)) {
-    // Clear any auth data before redirecting
-    sessionStorage.clear();
-    return <Navigate to="/" replace />;
-  }
+    const [session, setSession] = useState(null);
+    const [loading, setLoading] = useState(true);
 
-  return children;
+    useEffect(() => {
+        const fetchSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            setSession(session);
+            setLoading(false);
+        };
+
+        fetchSession();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    if (loading) {
+        return <div>Loading...</div>; 
+    }
+
+    if (!session) {
+     
+        return <Navigate to="/" />;
+    }
+
+    
+    return children;
 };
 
-export default ProtectedRoute; 
+export default ProtectedRoute;

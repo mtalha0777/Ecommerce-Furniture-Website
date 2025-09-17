@@ -1,137 +1,155 @@
 import React from 'react';
-import './footer.css';
-import 'bootstrap/dist/css/bootstrap.min.css';
 import { Link } from 'react-router-dom';
-import { HashLink } from 'react-router-hash-link';
-import Icon1 from '../../assets/images/icon-1.svg';
-import Icon2 from '../../assets/images/icon-2.svg';
-import Icon3 from '../../assets/images/icon-3.svg';
-import Icon5 from '../../assets/images/icon-5.svg';
-import logo from '../../assets/images/logo.png';
+import { useWindowSize } from '../../utils/useWindowSize';
+import logo from '../../assets/images/logo.png'; 
 import bed from '../../assets/images/bed.webp';
-import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
-import HeadphonesOutlinedIcon from '@mui/icons-material/HeadphonesOutlined';
-import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
-import WatchLaterOutlinedIcon from '@mui/icons-material/WatchLaterOutlined';
-import paymentImage from '../../assets/images/payment-method.png';
-import FacebookOutlinedIcon from '@mui/icons-material/FacebookOutlined';
-import TwitterIcon from '@mui/icons-material/Twitter';
-import InstagramIcon from '@mui/icons-material/Instagram';
-import YouTubeIcon from '@mui/icons-material/YouTube';
-import { EmailTwoTone } from '@mui/icons-material';
+import { Box, Container, Grid, Typography, Stack } from '@mui/material';
+import { 
+    LocationOnOutlined, HeadphonesOutlined, EmailOutlined, WatchLaterOutlined,
+    Facebook, Twitter, Instagram, YouTube 
+} from '@mui/icons-material';
+import { SiVisa, SiMastercard, SiStripe } from 'react-icons/si';
 
 const Footer = () => {
+    const { width } = useWindowSize();
+    const isMobile = width < 768;
+
+    const theme = {
+        primary: '#3C2A21',      
+        textPrimary: '#EAE0D5',   
+        textSecondary: '#D7CCC8', 
+        accent: '#FFF',           
+        newsletterBg: '#F5EFE6', 
+        newsletterSectionBg: '#FFF3E0', 
+        brandPrimary: '#5D4037', 
+        brandSecondary: '#8D6E63',
+    };
+
+    const linkStyles = {
+        color: theme.textSecondary,
+        textDecoration: 'none',
+        transition: 'color 0.3s ease',
+        '&:hover': {
+            color: theme.accent,
+        },
+    };
+
     return (
         <>
-            <section className='newsLetterSection'>
-                <div className='container-fluid'>
-                    <div className='box d-flex align-items-center'>
-                        <div className='info'>
-                            <h2>Stay home & get your<br /> daily needs from our shop</h2>
-                            <p>Start Your Daily Shopping with AR Furniture</p>
-                        </div>
-                        <div className='img'>
-                            <img src={bed} alt='bed' className='w-100' />
-                        </div>
-                    </div>
-                </div>
-            </section>
+            {/* Newsletter Section */}
+            <Box sx={{ p: isMobile ? 3 : 6, backgroundColor: theme.newsletterSectionBg }}>
+                <Box sx={{
+                    backgroundColor: theme.newsletterBg, 
+                    borderRadius: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    p: isMobile ? 4 : 6,
+                    flexDirection: isMobile ? 'column' : 'row',
+                    textAlign: isMobile ? 'center' : 'left',
+                }}>
+                    <Box>
+                        <Typography variant={isMobile ? "h4" : "h3"} component="h2" sx={{
+                            fontFamily: "'Playfair Display', serif",
+                            color: theme.brandPrimary,
+                            mb: 2
+                        }}>
+                            Stay home & furnish<br /> your dreams with us
+                        </Typography>
+                        <Typography sx={{ color: theme.brandSecondary, fontSize: '1.1rem' }}>
+                            Start Your Shopping with AR Furniture
+                        </Typography>
+                    </Box>
+                    <Box 
+                        component="img" 
+                        src={bed} 
+                        alt='bed' 
+                        sx={{ 
+                            maxWidth: isMobile ? '220px' : '320px', 
+                            height: 'auto', 
+                            mt: isMobile ? 4 : 0 
+                        }} 
+                    />
+                </Box>
+            </Box>
 
-            <div className='footerWrapper'>
+            {/* Main Footer */}
+            <Box sx={{
+                backgroundColor: theme.primary, 
+                color: theme.textPrimary,
+                p: isMobile ? '50px 25px' : '80px 50px',
+                fontFamily: "'Lato', sans-serif"
+            }}>
+                <Container maxWidth="xl">
+                    <Grid container spacing={5}>
+                        
+                        {/* Column 1: Contact Info */}
+                        <Grid item xs={12} md={4}>
+                            <Box component="img" src={logo} alt="AR Furniture Logo" sx={{ height: '50px', mb: 3 }} />
+                            <Stack spacing={2}>
+                                <Stack direction="row" spacing={1.5}><LocationOnOutlined /> <Typography><strong>Address:</strong> Chiniot, Pakistan</Typography></Stack>
+                                <Stack direction="row" spacing={1.5}><HeadphonesOutlined /> <Typography><strong>Call Us:</strong> (+92)-3125636893</Typography></Stack>
+                                <Stack direction="row" spacing={1.5}><EmailOutlined /> <Typography><strong>Email:</strong> arfurnish@gmail.com</Typography></Stack>
+                                <Stack direction="row" spacing={1.5}><WatchLaterOutlined /> <Typography><strong>Hours:</strong> 10:00 - 18:00, Mon-Sat</Typography></Stack>
+                            </Stack>
+                        </Grid>
 
-                <footer>
-                    <div className='container-fluid'>
-                        <div className='row'>
-                            {/* Footer content */}
-                            <div className='col-md-3 part1'>
-                                <Link to='/'><img src={logo} alt="AR Furniture Logo" /></Link>
-                                <br /><br />
-                                <p><LocationOnOutlinedIcon /> <strong>Address:</strong> Chiniot, Pakistan</p>
-                                <p><HeadphonesOutlinedIcon /> <strong>Call Us:</strong> (+92) -3221796734</p>
-                                <p><EmailOutlinedIcon /> <strong>Email:</strong> anasjavaid102@gmail.com</p>
-                                <p><WatchLaterOutlinedIcon /> <strong>Hours:</strong> 10:00 - 18:00, Mon - Sat</p>
-                            </div>
+                        {/* Column 2 & 3: Links */}
+                        <Grid item xs={12} md={5}>
+                            <Grid container spacing={5}>
+                                <Grid item xs={6}>
+                                     <Typography variant="h5" sx={{ fontFamily: "'Playfair Display', serif", color: theme.accent, mb: 3 }}>Company</Typography>
+                                     <Stack spacing={1.5} component="ul" sx={{p: 0, listStyle: 'none'}}>
+                                        <li><Link to="/aboutpage" style={linkStyles}>About Us</Link></li>
+                                        <li><Link to="/aboutdelivery" style={linkStyles}>Delivery Info</Link></li>
+                                        <li><Link to="/aboutprivacy" style={linkStyles}>Privacy Policy</Link></li>
+                                        <li><Link to="/aboutterms" style={linkStyles}>Terms & Conditions</Link></li>
+                                     </Stack>
+                                </Grid>
+                                <Grid item xs={6}>
+                                    <Typography variant="h5" sx={{ fontFamily: "'Playfair Display', serif", color: theme.accent, mb: 3 }}>Information</Typography>
+                                    <Stack spacing={1.5} component="ul" sx={{p: 0, listStyle: 'none'}}>
+                                        <li><Link to="/aboutshipping" style={linkStyles}>Shipping Policy</Link></li>
+                                        <li><Link to="/aboutreturn" style={linkStyles}>Return Policy</Link></li>
+                                        <li><Link to="/contact" style={linkStyles}>Contact Us</Link></li>
+                                     </Stack>
+                                </Grid>
+                            </Grid>
+                        </Grid>
 
-                            <div className='col-md-6 part2'>
-                                <div className='row'>
-                                    {/* Links */}
-                                    <div className='col'>
-                                        <h3 style={{ marginBottom: '15px', marginRight:'77%' }}>Company</h3>
-                                        <ul className="footer-list" style={{ paddingLeft: '0', listStyle: 'none' }}>
-                                            <li><HashLink smooth to="/AboutPage#company-info">About Us</HashLink></li>
-                                            <li><HashLink smooth to="/AboutPage#delivery-info">Delivery Information</HashLink></li>
-                                            <li><HashLink smooth to="/AboutPage#privacy-policy">Privacy Policy</HashLink></li>
-                                            <li><HashLink smooth to="/AboutPage#terms-conditions">Terms & Conditions</HashLink></li>
-                                            <li><HashLink smooth to="/AboutPage#contact-us">Contact Us</HashLink></li>
-                                            <li><HashLink smooth to="/AboutPage#support-center">Support Center</HashLink></li>
-                                        </ul>
-                                    </div>
+                        {/* Column 4: Payment */}
+                        <Grid item xs={12} md={3}>
+                            <Typography variant="h5" sx={{ fontFamily: "'Playfair Display', serif", color: theme.accent, mb: 3 }}>Secured Payment</Typography>
+                            <Typography sx={{ color: theme.textSecondary, mb: 2 }}>We use secure payment gateways to protect you.</Typography>
+                            <Stack direction="row" spacing={2} sx={{ fontSize: '2.5rem', color: theme.textSecondary }}>
+                                <SiVisa />
+                                <SiMastercard />
+                                <SiStripe />
+                            </Stack>
+                        </Grid>
+                    </Grid>
 
-                                    <div className='col'>
-                                        <h3 style={{ marginBottom: '15px', marginRight:'57%' }}>Information Area</h3>
-                                        <ul className="footer-list" style={{ paddingLeft: '0', listStyle: 'none' }}>
-                                            <li><HashLink smooth to="/AboutPage#shipping-info">Shipping Policy</HashLink></li>
-                                            <li><HashLink smooth to="/AboutPage#privacy-policy">Privacy Policy</HashLink></li>
-                                            <li><HashLink smooth to="/AboutPage#return-policy">Return Policy</HashLink></li>
-                                            <li><HashLink smooth to="/AboutPage#terms-conditions">Terms & Conditions</HashLink></li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-
-
-                            <div className='col-md-3 part3'>
-                                <h3>Payment Method</h3>
-                                <br />
-                                <p>Secured Payment Gateways</p>
-                                <img src={paymentImage} alt="Payment Methods" style={{ cursor: 'pointer' }} />
-                            </div>
-                        </div>
-
-                        <hr />
-
-                        <div className='row lastStrip'>
-                            <div className='col-md-3 part_1'>
-                                <p><strong>© 2024, AR Furniture</strong></p>
-                            </div>
-
-                            <div className='col-md-6 d-flex part_2'>
-                                <div className='m-auto d-flex align-items-center phWrap'>
-                                    <div className='phNo d-flex align-items-center mx-5'>
-                                        <span><EmailTwoTone /></span>
-                                        <div className='info ml-3'>
-                                            <h3 className='text-g mb-0'>arfurniture@Support.com</h3>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className='col-md-3 part3 part_3'>
-                                <div className='d-flex align-items-center'>
-                                    <h5>Follow Us</h5>
-                                    <ul className='list list-inline d-flex'>
-                                        <li className='list-inline-item mr-3'>
-                                            <Link to='https://www.facebook.com/'><FacebookOutlinedIcon /></Link>
-                                        </li>
-                                        <li className='list-inline-item mr-3'>
-                                            <Link to='https://www.twitter.com/'><TwitterIcon /></Link>
-                                        </li>
-                                        <li className='list-inline-item mr-3'>
-                                            <Link to='https://www.instagram.com/' style={{ color: 'red' }}><InstagramIcon /></Link>
-                                        </li>
-                                        <li className='list-inline-item'>
-                                            <Link to='https://www.youtube.com/' style={{ color: 'red' }}><YouTubeIcon /></Link>
-                                        </li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </footer>
-            </div>
+                    {/* Bottom Strip */}
+                    <Box sx={{
+                        pt: 4, mt: 6, borderTop: `1px solid ${theme.brandPrimary}`,
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        flexDirection: isMobile ? 'column' : 'row', gap: 2
+                    }}>
+                        <Typography sx={{ color: theme.textSecondary }}>© {new Date().getFullYear()}, AR Furniture. All Rights Reserved.</Typography>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                            <Typography>Follow Us:</Typography>
+                            <Stack direction="row" spacing={1.5}>
+                                <Link to='#' style={linkStyles}><Facebook /></Link>
+                                <Link to='#' style={linkStyles}><Twitter /></Link>
+                                <Link to='#' style={linkStyles}><Instagram /></Link>
+                                <Link to='#' style={linkStyles}><YouTube /></Link>
+                            </Stack>
+                        </Stack>
+                    </Box>
+                </Container>
+            </Box> 
         </>
     );
 }
 
 export default Footer;
-

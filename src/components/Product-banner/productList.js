@@ -1,495 +1,211 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
-import { useLocation } from "react-router-dom";
+import React, { useState, useEffect} from "react";
+import { useLocation, Link, useNavigate } from "react-router-dom";
+import { supabase } from "../../utils/supabaseClient";
+import toast from "react-hot-toast";
 import {
-  Card,
-  CardContent,
-  CardMedia,
-  Typography,
-  CardActionArea,
-  Grid,
-  Box,
-  Chip,
-  Container,
-  Modal,
-  Backdrop,
-  Fade,
-  Button,
-  IconButton,
+  Card, CardContent, CardMedia, Typography, Grid, Box, Container, IconButton, CircularProgress
 } from "@mui/material";
-import {
-  ArrowBackIos,
-  ArrowForwardIos,
-  FavoriteBorder,
-  Favorite,
-  AddShoppingCart,
-  CheckCircle,
-} from "@mui/icons-material";
+import { FavoriteBorder, Favorite, AddShoppingCart, RemoveShoppingCart } from "@mui/icons-material";
 
 const ProductList = () => {
-  const [products, setProdList] = useState([]);
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [openModal, setOpenModal] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [shopDetails, setShopDetails] = useState(null);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [isInCart, setIsInCart] = useState(false);
-
+  
+  // State to track user's actions for instant UI feedback
+  const [wishlistProductIds, setWishlistProductIds] = useState(new Set());
+  const [cartProductIds, setCartProductIds] = useState(new Set());
+  
   const location = useLocation();
+  const navigate = useNavigate();
   const category = location.state?.category;
-  const authToken = sessionStorage.getItem('authToken');
+
+  const theme = {
+      background: '#F5EFE6',
+      cardBackground: '#FFFFFF',
+      primaryText: '#5D4037',
+      secondaryText: '#8D6E63',
+      accent: '#8D6E63'
+  };
 
   useEffect(() => {
-    if (category) {
-      const fetchProducts = async () => {
-        setLoading(true);
-        try {
-          const response = await axios.post(
-            `http://localhost:3001/searchedProduct`,
-            { searchTerm: category },
-            {
-              headers: {
-                'Authorization': `Bearer ${authToken}`
-              }
-            }
-          );
-          setProdList(response.data.products);
-        } catch (err) {
-          setError(err.response?.data?.error || "Failed to load products");
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchProducts();
-    } else {
-      setLoading(false);
-    }
-  }, [category]);
-
-  const handleCardClick = async (product) => {
-    setSelectedProduct(product);
-    setCurrentImageIndex(0);
-    setOpenModal(true);
-
-    const userID = localStorage.getItem("userID");
-
-    try {
-      const shopResponse = await axios.post(`http://localhost:3001/shop`, {
-        shopID: product.shopID,
-      },
-    
-      {
-        headers: {
-          'Authorization': `Bearer ${authToken}`
-        }
-      });
-      setShopDetails(shopResponse.data.shop);
-
-      const favoriteResponse = await axios.post(`http://localhost:3001/checkFavorite`, {
-        userID,
-        productID: product._id,
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${authToken}`
-          }
-        }
-      );
-      setIsFavorite(favoriteResponse.data.isFavorite);
-
-      const cartResponse = await axios.post(`http://localhost:3001/checkInCart`, {
-        userID,
-        productID: product._id,
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${authToken}`
-          }
-        }
-      );
-      setIsInCart(cartResponse.data.isInCart);
-    } catch (err) {
-      console.error("Error occurred while fetching data:", err);
-    }
-  };
-
-  const handleCloseModal = () => {
-    setOpenModal(false);
-    setShopDetails(null);
-  };
-
-  const handleNextImage = () => {
-    if (selectedProduct) {
-      setCurrentImageIndex((prevIndex) =>
-        prevIndex === selectedProduct.images.length - 1 ? 0 : prevIndex + 1
-      );
-    }
-  };
-
-  const handlePrevImage = () => {
-    if (selectedProduct) {
-      setCurrentImageIndex((prevIndex) =>
-        prevIndex === 0 ? selectedProduct.images.length - 1 : prevIndex - 1
-      );
-    }
-  };
-
-  const handleToggleFavorite = async () => {
-    const userID = localStorage.getItem("userID");
-    const productID = selectedProduct?._id;
-
-    if (!userID || !productID) {
-        console.error("User ID or Product ID is missing.");
-        return;
-    }
-
-    try {
-        const response = await axios.post("http://localhost:3001/favorite", {
-            userID,
-            productID,
-            productName: selectedProduct.productName,
-            category: selectedProduct.category,
-            price: selectedProduct.price,
-            images: selectedProduct.images,
-            shopName: shopDetails.shopName,
-            address: shopDetails.city
-        }, {
-            headers: {
-                'Authorization': `Bearer ${authToken}`
-            }
-        });
-
-        if (response.status === 200 || response.status === 201) {
-            setIsFavorite((prev) => !prev);
-        } else {
-            console.error("Failed to toggle favorite product:", response.data.error);
-        }
-    } catch (error) {
-        console.error("Error toggling favorite product:", error);
-    }
-  };
-
-  const handleAddToCart = async () => {
-    const userID = localStorage.getItem("userID");
-    const productID = selectedProduct?._id;
-
-    if (!userID || !productID) {
-      console.error("User ID or Product ID is missing.");
+    if (!category) {
+      toast.error("No category selected.");
+      navigate("/"); 
       return;
     }
 
-    try {
-      const response = await axios.post("http://localhost:3001/addToCart", {
-        userID,
-        productID,
-        productName: selectedProduct.productName,
-        category: selectedProduct.category,
-        price: selectedProduct.price,
-        images: selectedProduct.images,
-        shopName: shopDetails.shopName,
-        address: shopDetails.city,
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${authToken}`
-        }
-      }
-    );
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
 
-      if (response.status === 200 || response.status === 201) {
-        setIsInCart(true);
-      } else {
-        console.error("Failed to add product to cart:", response.data.error);
+        const { data: productsData, error: productsError } = await supabase
+          .from('products')
+          .select('*, categories!inner(category_slug)')
+          .eq('categories.category_slug', category);
+
+        if (productsError) throw productsError;
+        setProducts(productsData || []);
+
+        if (user) {
+    
+          const [wishlistRes, cartRes] = await Promise.all([
+            supabase.from('wishlist_items').select('product_id').eq('user_id', user.id),
+            supabase.from('cart_items').select('product_id').eq('user_id', user.id)
+          ]);
+
+          if (wishlistRes.error) throw wishlistRes.error;
+          if (cartRes.error) throw cartRes.error;
+          
+          setWishlistProductIds(new Set(wishlistRes.data.map(item => item.product_id)));
+          setCartProductIds(new Set(cartRes.data.map(item => item.product_id)));
+        }
+      } catch (err) {
+        setError("Failed to load products. Please try again.");
+        toast.error(err.message);
+        console.error(err);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Error adding product to cart:", error);
+    };
+
+    fetchData();
+  }, [category, navigate]);
+
+
+
+  const handleToggleWishlist = async (e, product) => {
+    e.stopPropagation();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return toast.error("Please login to add to wishlist.");
+    
+    const isFavorite = wishlistProductIds.has(product.id);
+    const optimisticProductIds = new Set(wishlistProductIds);
+
+    try {
+        if (isFavorite) {
+            optimisticProductIds.delete(product.id);
+            setWishlistProductIds(optimisticProductIds);
+            const { error } = await supabase.from('wishlist_items').delete().match({ user_id: user.id, product_id: product.id });
+            if (error) throw error;
+            toast.success("Removed from wishlist");
+        } else {
+            optimisticProductIds.add(product.id);
+            setWishlistProductIds(optimisticProductIds);
+            const { error } = await supabase.from('wishlist_items').insert({ user_id: user.id, product_id: product.id });
+            if (error) throw error;
+            toast.success("Added to wishlist");
+        }
+    } catch (err) {
+        setWishlistProductIds(new Set(wishlistProductIds)); 
+        toast.error("Could not update wishlist.");
     }
   };
 
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>{error}</div>;
+  const handleToggleCart = async (e, product) => {
+    e.stopPropagation(); 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return toast.error("Please login to add to cart.");
+
+    const inCart = cartProductIds.has(product.id);
+    const optimisticCartIds = new Set(cartProductIds);
+    
+    try {
+        if (inCart) {
+            optimisticCartIds.delete(product.id);
+            setCartProductIds(optimisticCartIds);
+            const { error } = await supabase.from('cart_items').delete().match({ user_id: user.id, product_id: product.id });
+            if (error) throw error;
+            toast.success("Removed from cart");
+        } else {
+            optimisticCartIds.add(product.id);
+            setCartProductIds(optimisticCartIds);
+            const { error } = await supabase.from('cart_items').insert({ user_id: user.id, product_id: product.id });
+            if (error) throw error;
+            toast.success("Added to cart");
+        }
+    } catch (err) {
+        setCartProductIds(new Set(cartProductIds)); 
+        toast.error("Could not update cart.");
+    }
+  };
+
+  if (loading) {
+      return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh', backgroundColor: theme.background }}><CircularProgress sx={{color: theme.accent}} /></Box>;
+  }
+  if (error) {
+      return <Typography sx={{textAlign: 'center', mt: 5, color: 'red'}}>{error}</Typography>;
+  }
 
   return (
-    <>
-    <Typography
-    variant="h4"
-    component="h2"
-    align="center"
-    gutterBottom
-    sx={{ color: "#5D4037", padding: "20px" }}
-  >
-    Products Selling {category}
-  </Typography>
-    <Container 
-      maxWidth="xl"
-      boxShadow={3}
-      sx={{ 
-        background: 'linear-gradient(to right, #FFF3E0, #FFE0B2)',
-        padding: "20px",
-        minHeight: '100vh'
-      }}
-    >
-      <Grid container spacing={3}>
-        {products.length === 0 ? (
-          <Typography variant="body1" align="center" sx={{ width: "100%", color: "#5D4037" }}>
-            No products found for this category.
-          </Typography>
-        ) : (
-          products.map((product) => (
-            <Grid item xs={12} sm={6} md={4} lg={3} key={product._id}>
-              <HoverCard
-                product={product}
-                onClick={() => handleCardClick(product)}
-              />
-            </Grid>
-          ))
-        )}
-      </Grid>
+    <Box sx={{ backgroundColor: theme.background, minHeight: '100vh', py: 4 }}>
+      <Container maxWidth="xl">
+        <Typography variant="h3" component="h1" align="center" gutterBottom sx={{ color: theme.primaryText, fontFamily: "'Playfair Display', serif" }}>
+          {category.charAt(0).toUpperCase() + category.slice(1)}
+        </Typography>
 
-      {selectedProduct && (
-        <Modal
-          open={openModal}
-          onClose={handleCloseModal}
-          closeAfterTransition
-          BackdropComponent={Backdrop}
-          BackdropProps={{
-            timeout: 500,
-            sx: {
-              backgroundColor: "rgba(0, 0, 0, 0.7)",
-            },
-          }}
-        >
-          <Fade in={openModal}>
-            <Box
-              sx={{
-                bgcolor: "#FFF3E0",
-                boxShadow: 24,
-                p: 4,
-                maxWidth: 600,
-                mx: "auto",
-                my: "10%",
-                outline: "none",
-                borderRadius: "10px",
-                position: "relative",
-                border: "2px solid #5D4037",
-              }}
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  mb: 2,
-                }}
-              >
-                <Typography
-                  variant="h5"
-                  component="h2"
-                  sx={{
-                    color: "#5D4037",
-                    fontWeight: "bold",
-                  }}
-                >
-                  {selectedProduct.productName}
-                </Typography>
-                <IconButton onClick={handleToggleFavorite}>
-                  {isFavorite ? (
-                    <Favorite sx={{ color: "red" }} />
-                  ) : (
-                    <FavoriteBorder />
-                  )}
-                </IconButton>
-                <IconButton onClick={handleAddToCart}>
-                  {isInCart ? (
-                    <CheckCircle sx={{ color: "green" }} />
-                  ) : (
-                    <AddShoppingCart />
-                  )}
-                </IconButton>
-              </Box>
-              <Box
-                sx={{
-                  position: "relative",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  height: 300,
-                  width: "100%",
-                  overflow: "hidden",
-                  mb: 2,
-                }}
-              >
-                <IconButton
-                  onClick={handlePrevImage}
-                  sx={{
-                    position: "absolute",
-                    left: 0,
-                    zIndex: 1,
-                    backgroundColor: "rgba(255, 255, 255, 0.7)",
-                    "&:hover": { backgroundColor: "rgba(255, 255, 255, 1)" },
-                  }}
-                >
-                  <ArrowBackIos />
-                </IconButton>
-                <CardMedia
-                  component="img"
-                  sx={{
-                    maxHeight: "100%",
-                    maxWidth: "100%",
-                    objectFit: "contain",
-                    border: "1px solid #FFB300",
-                    borderRadius: "8px",
-                  }}
-                  image={`http://localhost:3001/uploads/${selectedProduct.images[currentImageIndex]}`}
-                  alt={`Product Image ${currentImageIndex + 1}`}
+        <Grid container spacing={3}>
+          {products.length === 0 ? (
+            <Typography variant="body1" align="center" sx={{ width: "100%", color: theme.secondaryText, mt: 5 }}>
+              No products found for this category.
+            </Typography>
+          ) : (
+            products.map((product) => (
+              <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
+                <ProductCard
+                  product={product}
+                  isFavorite={wishlistProductIds.has(product.id)}
+                  isInCart={cartProductIds.has(product.id)}
+                  onToggleWishlist={handleToggleWishlist}
+                  onToggleCart={handleToggleCart}
+                  theme={theme}
                 />
-                <IconButton
-                  onClick={handleNextImage}
-                  sx={{
-                    position: "absolute",
-                    right: 0,
-                    zIndex: 1,
-                    backgroundColor: "rgba(255, 255, 255, 0.7)",
-                    "&:hover": { backgroundColor: "rgba(255, 255, 255, 1)" },
-                  }}
-                >
-                  <ArrowForwardIos />
-                </IconButton>
-              </Box>
-
-              <Typography
-                variant="body1"
-                sx={{
-                  color: "#5D4037",
-                  mb: 1,
-                  border: "1px solid #FFB300",
-                  borderRadius: "5px",
-                  padding: "10px",
-                }}
-              >
-                {selectedProduct.description}
-              </Typography>
-              <Typography variant="h6" component="p" sx={{ color: "#5D4037" }}>
-                Price: ${selectedProduct.price.toFixed(2)}
-              </Typography>
-              <Box
-                sx={{
-                  borderTop: "2px solid #FFB300",
-                  marginTop: "16px",
-                  paddingTop: "8px",
-                }}
-              >
-                <Typography variant="subtitle1" sx={{ color: "#5D4037", fontWeight: "bold" }}>
-                  Shop Details
-                </Typography>
-                {shopDetails && (
-                  <Typography variant="body2" sx={{ color: "#5D4037" }}>
-                    {shopDetails.shopName} | {shopDetails.city}
-                  </Typography>
-                )}
-              </Box>
-            </Box>
-          </Fade>
-        </Modal>
-      )}
-    </Container>
-    </>
+              </Grid>
+            ))
+          )}
+        </Grid>
+      </Container>
+    </Box>
   );
 };
 
-const HoverCard = ({ product, onClick }) => {
+
+const ProductCard = ({ product, isFavorite, isInCart, onToggleWishlist, onToggleCart, theme }) => {
   return (
-    <Card
-      onClick={onClick}
-      sx={{
-        borderRadius: "12px",
-        height: '400px',
-        display: 'flex',
-        flexDirection: 'column',
+    <Card sx={{
+        height: '100%', display: 'flex', flexDirection: 'column', borderRadius: '15px',
         transition: "transform 0.3s, box-shadow 0.3s",
-        backgroundColor: '#FFFFFF',
-        "&:hover": {
-          transform: "scale(1.03)",
-          boxShadow: "0 8px 20px rgba(93, 64, 55, 0.2)",
-        },
-      }}
-    >
-      <CardActionArea sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-        <Box sx={{ 
-          height: '250px',
-          width: '100%',
-          overflow: 'hidden',
-          position: 'relative'
-        }}>
-          <CardMedia
-            component="img"
-            sx={{
-              height: '100%',
-              width: '100%',
-              objectFit: 'cover',
-              borderTopLeftRadius: "12px",
-              borderTopRightRadius: "12px",
-            }}
-            image={`http://localhost:3001/uploads/${product.images[0]}`}
-            alt='No Image for this Product'
-          />
-        </Box>
-        <CardContent sx={{ 
-          flexGrow: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          padding: '16px',
-          background: 'linear-gradient(to right, #FFF3E0, #FFE0B2)',
-          borderBottomLeftRadius: '12px',
-          borderBottomRightRadius: '12px',
-          width: '100%',
-          alignItems: 'center'
-        }}>
-          <Typography 
-            variant="h6" 
-            component="div" 
-            sx={{ 
-              color: "#5D4037",
-              fontSize: '1.1rem',
-              fontWeight: 600,
-              mb: 1,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-            }}
-          >
-            {product.productName}
+        "&:hover": { transform: "translateY(-5px)", boxShadow: "0 8px 20px rgba(93, 64, 55, 0.15)" }
+    }}>
+      <Box sx={{ position: 'relative' }}>
+          <IconButton onClick={(e) => onToggleWishlist(e, product)} sx={{ position: 'absolute', top: 8, right: 8, zIndex: 2, backgroundColor: 'rgba(255,255,255,0.7)' }}>
+              {isFavorite ? <Favorite sx={{ color: "red" }} /> : <FavoriteBorder />}
+          </IconButton>
+          <Link to={`/product/${product.id}`} style={{ textDecoration: 'none' }}>
+              <CardMedia
+                  component="img"
+                  height="250"
+                  image={product.image_urls?.[0] || 'https://placehold.co/400x400/F5EFE6/5D4037?text=No+Image'}
+                  alt={product.name}
+              />
+          </Link>
+      </Box>
+      <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', p: 2 }}>
+        <Link to={`/product/${product.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+          <Typography gutterBottom variant="h6" component="div" sx={{ color: theme.primaryText, flexGrow: 1 }}>
+              {product.name}
           </Typography>
-          <Box>
-            <Typography 
-              variant="body1" 
-              sx={{ 
-                color: "#5D4037",
-                fontWeight: 500,
-                mb: 1
-              }}
-            >
-              ${product.price.toFixed(2)}
+        </Link>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 'auto', pt: 2 }}>
+            <Typography variant="h6" sx={{ color: theme.accent, fontWeight: 'bold' }}>
+              Rs {product.price}
             </Typography>
-            <Chip
-              label={product.category}
-              sx={{
-                backgroundColor: "#FFB300",
-                color: "#fff",
-                fontWeight: 500,
-                '&:hover': {
-                  backgroundColor: "#FFA000"
-                }
-              }}
-            />
-          </Box>
-        </CardContent>
-      </CardActionArea>
+            <IconButton onClick={(e) => onToggleCart(e, product)} sx={{ border: `1px solid ${isInCart ? '#4CAF50' : theme.lightBorder}` }}>
+                {isInCart ? <RemoveShoppingCart sx={{color: theme.secondaryText}} /> : <AddShoppingCart sx={{color: theme.accent}} />}
+            </IconButton>
+        </Box>
+      </CardContent>
     </Card>
   );
 };

@@ -1,202 +1,290 @@
 import React, { useState } from "react";
-import "./shopDetails.css";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faStore,
-  faRoad,
-  faCity,
-  faTag,
-} from "@fortawesome/free-solid-svg-icons";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "../../utils/supabaseClient";
+import toast from "react-hot-toast";
 
-function ShopRegistration() {
-  const location = useLocation();
+import { FaStore, FaMapMarkerAlt, FaShapes } from "react-icons/fa";
+
+const ShopRegistration = () => {
+  const [shopName, setShopName] = useState("");
+  const [city, setCity] = useState("");
+  const [categories, setCategories] = useState("");
+  const [profilePicture, setProfilePicture] = useState(null);
+  const [profilePicturePreview, setProfilePicturePreview] = useState(null);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const userID = location.state?.userID;
-  const [formData, setFormData] = useState({
-    shopName: "",
-    street: "",
-    city: "",
-    productCategories: "",
-    profilePicture: null,
-    profilePicturePreview: null,
-  });
-  const [errorMessage, setErrorMessage] = useState("");
 
-  const cities = ["New York", "Los Angeles", "Chicago", "Houston", "Phoenix"]; // Example cities
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
-
-  const handleFileChange = (e) => {
+const handleFileChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const isImage = file.type.startsWith("image/");
-      const isSizeValid = file.size <= 5 * 1024 * 1024; // 5MB in bytes
-
-      if (!isImage) {
-        setErrorMessage("Please upload an image file (JPEG, PNG).");
-        setFormData({
-          ...formData,
-          profilePicture: null,
-          profilePicturePreview: null,
-        });
-        return;
-      }
-
-      if (!isSizeValid) {
-        setErrorMessage("Image size should be less than 5MB.");
-        setFormData({
-          ...formData,
-          profilePicture: null,
-          profilePicturePreview: null,
-        });
-        return;
-      }
-
-      setErrorMessage("");
-      setFormData({
-        ...formData,
-        profilePicture: file,
-        profilePicturePreview: URL.createObjectURL(file),
-      });
-    }
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const data = new FormData();
-    data.append("shopName", formData.shopName);
-    data.append("street", formData.street);
-    data.append("city", formData.city);
-    data.append("productCategories", formData.productCategories);
     
-    if (userID) {
-      data.append("userID", userID);
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+        toast.error('Please select a valid image file (PNG, JPG).');
+        return;
     }
 
-    if (formData.profilePicture) {
-      data.append("profilePicture", formData.profilePicture);
+    const maxSizeInBytes = 5 * 1024 * 1024; 
+    if (file.size > maxSizeInBytes) {
+        toast.error('Image size must be less than 5MB.');
+        return;
     }
 
-    // Get the token from localStorage
-    const token = sessionStorage.getItem('authToken');
+    setProfilePicture(file);
+    setProfilePicturePreview(URL.createObjectURL(file));
+};
 
-    fetch("http://localhost:3001/createshop", {
-      method: "POST",
-      headers: {
-        'Authorization': `Bearer ${token}`
-      },
-      body: data,
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Network response was not ok");
-        }
-        return response.json();
-      })
-      .then((data) => {
-        // Reset the form if needed
-        setFormData({
-          shopName: "",
-          street: "",
-          city: "",
-          productCategories: "",
-          profilePicture: null,
-          profilePicturePreview: null,
-        });
-        navigate('/home');
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-        setErrorMessage("An error occurred while submitting the form.");
-      });
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!shopName.trim() || !city.trim()) {
+    toast.error("Shop name and city are required.");
+    return;
+  }
+  setLoading(true);
+
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    
+    console.log("Current User Object:", user);
+    
+    if (!user) {
+      toast.error("Authentication Error: No user is logged in.");
+      setLoading(false);
+      return;
+    }
+
+    let uploadedFileUrl = null;
+
+    if (profilePicture) {
+      const fileExt = profilePicture.name.split(".").pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `shop-avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("product_images")
+        .upload(filePath, profilePicture);
+
+      if (uploadError) throw uploadError;
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("product_images").getPublicUrl(filePath);
+
+      uploadedFileUrl = publicUrl;
+    }
+
+    // Prepare shop data
+    const shopData = {
+      shopName: shopName.trim(),
+      owner_id: user.id,
+      city: city.trim(),
+      product_categories_text: categories.trim(),
+      profilePicture_url: uploadedFileUrl,
+    };
+
+
+    // Insert shop data
+    const { data: newShop, error: shopError } = await supabase
+      .from("shops")
+      .insert(shopData)
+      .select()
+      .single();
+
+    if (shopError) {
+      console.error("Shop insertion error details:", shopError);
+      throw new Error(`Shop creation failed: ${shopError.message}`);
+    }
+
+    toast.success("Shop created successfully!");
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({ shopID: parseInt(newShop.id) }) 
+      .eq("id", user.id);
+
+    if (profileError) {
+      console.error("Profile update error:", profileError);
+      throw new Error(`Profile update failed: ${profileError.message}`);
+    }
+
+    toast.success("Your shop has been created successfully!");
+    navigate("/sellerdashboard");
+    
+  } catch (error) {
+    toast.error("Shop Creation Error Details:", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint
+    });
+    
+    if (error.message.includes('row-level security')) {
+      toast.error("Permission denied. Please check your authentication status.");
+    } else {
+      toast.error(error.message || "An unexpected error occurred.");
+    }
+  } finally {
+    setLoading(false);
+  }
+};
+  // --- Styling ---
+  const styles = {
+    page: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      minHeight: "100vh",
+      backgroundColor: "#F5EFE6",
+      fontFamily: "'Lato', sans-serif",
+      padding: "20px",
+    },
+    box: {
+      width: "100%",
+      maxWidth: "550px",
+      backgroundColor: "white",
+      borderRadius: "20px",
+      boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
+      padding: "40px",
+    },
+    title: {
+      fontFamily: "'Playfair Display', serif",
+      color: "#5D4037",
+      fontSize: "2.5rem",
+      textAlign: "center",
+      marginBottom: "15px",
+    },
+    subtitle: {
+      color: "#8D6E63",
+      fontSize: "1.1rem",
+      textAlign: "center",
+      marginBottom: "40px",
+    },
+    formGroup: { marginBottom: "25px" },
+    label: {
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      color: "#5D4037",
+      marginBottom: "8px",
+      fontWeight: "bold",
+    },
+    input: {
+      width: "100%",
+      padding: "12px",
+      border: "1px solid #D7CCC8",
+      borderRadius: "8px",
+      fontSize: "1rem",
+    },
+    fileInputContainer: {
+      border: "2px dashed #D7CCC8",
+      borderRadius: "8px",
+      padding: "20px",
+      textAlign: "center",
+      cursor: "pointer",
+    },
+    previewImage: {
+      maxWidth: "150px",
+      maxHeight: "150px",
+      borderRadius: "50%",
+      objectFit: "cover",
+      marginTop: "20px",
+    },
+    button: {
+      width: "100%",
+      padding: "15px",
+      backgroundColor: "#8D6E63",
+      color: "white",
+      border: "none",
+      borderRadius: "10px",
+      fontSize: "1.1rem",
+      fontWeight: "bold",
+      cursor: "pointer",
+    },
   };
 
   return (
-    <div className="shop-registration" style={{ marginTop: "5%" }}>
-      <h2>Register Your Shop</h2>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>Shop Name:</label>
-          <FontAwesomeIcon icon={faStore} className="icon" />
-          <input
-            type="text"
-            name="shopName"
-            value={formData.shopName}
-            onChange={handleChange}
-            required
-          />
-        </div>
-
-        <div>
-          <label>Street Address:</label>
-          <FontAwesomeIcon icon={faRoad} className="icon" />
-          <input
-            type="text"
-            name="street"
-            value={formData.street}
-            onChange={handleChange}
-            required
-          />
-        </div>
-
-        <div>
-          <label>City:</label>
-          <FontAwesomeIcon icon={faCity} className="icon" />
-          <select
-            name="city"
-            value={formData.city}
-            onChange={handleChange}
-            required
-          >
-            <option value="" disabled>
-              Select your city
-            </option>
-            {cities.map((city) => (
-              <option key={city} value={city}>
-                {city}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label>Product Categories:</label>
-          <FontAwesomeIcon icon={faTag} className="icon" />
-          <input
-            type="text"
-            name="productCategories"
-            value={formData.productCategories}
-            onChange={handleChange}
-            placeholder="e.g., Electronics, Fashion, Groceries"
-            required
-          />
-        </div>
-
-        <div>
-          <label>Profile Picture:</label>
-          <input
-            type="file"
-            accept="image/*"
-            name="profilePicture"
-            onChange={handleFileChange}
-          />
-          {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
-        </div>
-
-        {formData.profilePicturePreview && (
-          <div className="profile-picture-preview">
-            <img src={formData.profilePicturePreview} alt="Profile Preview" />
+    <div style={styles.page}>
+      <div style={styles.box}>
+        <h1 style={styles.title}>Become a Seller</h1>
+        <p style={styles.subtitle}>Fill in your shop details to get started.</p>
+        <form onSubmit={handleSubmit}>
+          {/* Shop Name */}
+          <div style={styles.formGroup}>
+            <label style={styles.label}>
+              <FaStore /> Shop Name
+            </label>
+            <input
+              type="text"
+              style={styles.input}
+              placeholder="e.g., Talha's Fine Furniture"
+              value={shopName}
+              onChange={(e) => setShopName(e.target.value)}
+              required
+            />
           </div>
-        )}
 
-        <button type="submit">Register</button>
-      </form>
+          {/* City */}
+          <div style={styles.formGroup}>
+            <label style={styles.label}>
+              <FaMapMarkerAlt /> City
+            </label>
+            <input
+              type="text"
+              style={styles.input}
+              placeholder="e.g., Chiniot"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              required
+            />
+          </div>
+          {/* Product Categories */}
+          <div style={styles.formGroup}>
+            <label style={styles.label}>
+              <FaShapes /> Product Categories
+            </label>
+            <input
+              type="text"
+              style={styles.input}
+              placeholder="e.g., Beds, Sofas, Tables"
+              value={categories}
+              onChange={(e) => setCategories(e.target.value)}
+            />
+          </div>
+
+          {/* File Upload */}
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Shop Profile Picture (Optional)</label>
+            <div
+              style={styles.fileInputContainer}
+              onClick={() => document.getElementById("file-input").click()}
+            >
+              <input
+                type="file"
+                id="file-input"
+                accept="image/*"
+                onChange={handleFileChange}
+                style={{ display: "none" }}
+              />
+              {profilePicturePreview ? (
+                <img
+                  src={profilePicturePreview}
+                  alt="Preview"
+                  style={styles.previewImage}
+                />
+              ) : (
+                <p>Click to upload an image</p>
+              )}
+            </div>
+          </div>
+
+          <button type="submit" style={styles.button} disabled={loading}>
+            {loading ? "Setting up your shop..." : "Create Shop"}
+          </button>
+        </form>
+      </div>
     </div>
   );
-}
+};
 
 export default ShopRegistration;

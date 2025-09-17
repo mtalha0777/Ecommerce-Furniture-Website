@@ -1,73 +1,182 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import bed2 from '../../assets/images/bed2.jpeg';
-import bed3 from '../../assets/images/bed.webp';
-import bed4 from '../../assets/images/bed4.jpeg';
-import bed5 from '../../assets/images/bed5.jpeg';
-import sofa1 from '../../assets/images/sofa1.jpeg';
-import sofa2 from '../../assets/images/sofa2.jpeg';
-import sofa3 from '../../assets/images/sofa3.jpeg';
-import table1 from '../../assets/images/table1.jpeg';
-import table2 from '../../assets/images/table2.jpeg';
-import table3 from '../../assets/images/table3.jpeg';
-import './style1.css';
+import { supabase } from '../../utils/supabaseClient';
+import Slider from 'react-slick';
+import "slick-carousel/slick/slick.css"; 
+import "slick-carousel/slick/slick-theme.css";
 
 const Banner = ({ title, images, category }) => {
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const navigate = useNavigate();
+    const navigate = useNavigate();
+    const [isHovered, setIsHovered] = useState(false);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentImageIndex((prevIndex) => (prevIndex + 1) % images.length);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [images.length]);
+    // Slider settings
+    const sliderSettings = {
+        dots: true,       
+        infinite: true,  
+        speed: 500,       
+        slidesToShow: 1,  
+        slidesToScroll: 1,
+        autoplay: true,   
+        autoplaySpeed: 3000, 
+        arrows: false,    
+    };
 
-  const handleNavigate = () => {
-    navigate('/productList', { state: { category } });
-  };
+    const handleNavigate = () => {
+        navigate('/productList', { state: { category } });
+    };
 
-  return (
-    <div className="col-md-4 col-sm-12 mb-4 d-flex justify-content-center">
-      <div className="card product-card shadow-sm">
-        <h3>{title}</h3>
-        <img src={images[currentImageIndex]} alt={title} className="product-image" />
-        <button 
-          onClick={handleNavigate}
-          className="btn btn-golden mt-3"
+    const styles = {
+        card: {
+            backgroundColor: '#fff',
+            borderRadius: '15px',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.07)',
+            padding: '20px',
+            textAlign: 'center',
+            width: '350px',
+            transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+            cursor: 'pointer',
+            border: '1px solid #EFEBE9'
+        },
+        cardTitle: {
+            fontFamily: "'Playfair Display', serif",
+            color: '#5D4037',
+            fontSize: '2rem',
+            marginBottom: '15px',
+        },
+        // --- Slider ke image ka style ---
+        image: {
+            width: '100%',
+            height: '250px',
+            objectFit: 'cover',
+            borderRadius: '10px',
+        },
+        button: {
+            backgroundColor: '#8D6E63',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '50px',
+            padding: '12px 30px',
+            fontSize: '1rem',
+            cursor: 'pointer',
+            transition: 'background-color 0.3s ease',
+            marginTop: '20px' 
+        }
+    };
+
+    const cardStyle = isHovered ? { ...styles.card, transform: 'translateY(-10px)', boxShadow: '0 15px 40px rgba(0, 0, 0, 0.1)' } : styles.card;
+    const buttonStyle = isHovered ? { ...styles.button, backgroundColor: '#5D4037' } : styles.button;
+
+    return (
+        <div
+            style={cardStyle}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            onClick={handleNavigate}
         >
-          Visit Page
-        </button>
-      </div>
-    </div>
-  );
-};
+            <h3 style={styles.cardTitle}>{title}</h3>
+            
+        
+            {images && images.length > 0 ? (
+                <Slider {...sliderSettings}>
+                    {images.map((imgUrl, index) => (
+                        <div key={index}>
+                            <img src={imgUrl} alt={`${title} ${index + 1}`} style={styles.image} />
+                        </div>
+                    ))}
+                </Slider>
+            ) : (
+               <img src='https://placehold.co/350x250/F5EFE6/5D4037?text=No+Image' alt={title} style={styles.image} />
+            )}
 
-const HomePage = () => {
-  return (
-    <div className="container-fluid home-page" style={{ backgroundColor: '#FFF3E0' }}>
-      <div className="container py-5">
-        <h1 className="text-center mb-5 text-brown">Welcome to Our Furniture Store</h1>
-        <div className="row justify-content-center">
-          <Banner
-            title="Beds"
-            images={[bed2, bed3, bed4, bed5]}
-            category="bed"
-          />
-          <Banner
-            title="Sofas"
-            images={[sofa1, sofa2, sofa3]}
-            category="sofa"
-          />
-          <Banner
-            title="Chairs & Tables"
-            images={[table1, table2, table3]}
-            category="table"
-          />
+            <button style={buttonStyle}>Explore Collection</button>
         </div>
-      </div>
-    </div>
-  );
+    );
+};
+const HomePage = () => {
+    const [categoriesData, setCategoriesData] = useState([]);
+    const [loading, setLoading] = useState(true); 
+    useEffect(() => {
+        const fetchCategoriesAndProducts = async () => {
+            setLoading(true); 
+            const { data, error } = await supabase
+                .from('categories')
+                .select(`
+                    name,
+                    category_slug,
+                    products (
+                        image_urls
+                    )
+                `)
+                .limit(3, { foreignTable: 'products' }); 
+
+            if (error) {
+                console.error("Error fetching data:", error);
+            } else {
+                setCategoriesData(data);
+            }
+            setLoading(false); 
+        };
+
+        fetchCategoriesAndProducts();
+    }, []);
+
+    if (loading) {
+        return (
+            <div style={styles.page}>
+                <h1 style={styles.mainTitle}>Discover Your Style</h1>
+                <p style={styles.loadingText}>Loading Categories...</p>
+            </div>
+        );
+    }
+
+
+
+ return (
+        <div style={styles.page}>
+            <h1 style={styles.mainTitle}>Discover Your Style</h1>
+            <div style={styles.bannersContainer}>
+                {categoriesData.map((cat) => {
+                    const productImages = cat.products
+                        ? cat.products.flatMap(product => product.image_urls || [])
+                        : [];
+
+                    return (
+                        <Banner
+                            key={cat.name}
+                            title={cat.name}
+                            images={productImages} 
+                            category={cat.category_slug}
+                        />
+                    );
+                })}
+            </div>
+        </div>
+    );
 };
 
+    const styles = {
+        page: {
+            backgroundColor: '#FFF8E1',
+            padding: '60px 20px',
+            minHeight: '80vh'
+        },
+        mainTitle: {
+            textAlign: 'center',
+            marginBottom: '50px',
+            color: '#5D4037',
+            fontFamily: "'Playfair Display', serif",
+            fontSize: '3rem',
+        },
+        bannersContainer: {
+            display: 'flex',
+            justifyContent: 'center',
+            flexWrap: 'wrap',
+            gap: '40px'
+        },
+        loadingText: {
+            textAlign: 'center',
+            fontSize: '1.5rem',
+            color: '#8D6E63'
+        }
+    };
 export default HomePage;

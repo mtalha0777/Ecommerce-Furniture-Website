@@ -1,290 +1,387 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaUserTag, FaCouch } from 'react-icons/fa';
-import axios from 'axios';
-import 'bootstrap/dist/css/bootstrap.min.css';
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { supabase } from "../utils/supabaseClient";
+import toast from "react-hot-toast";
+import { useWindowSize } from "../utils/useWindowSize";
 
-import images1 from './images1.jpeg';
-import signup from './signup.jpeg';
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 
-function Signup() {
-    const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [errors, setErrors] = useState({});
-    const [role, setRole] = useState('User');
-    const [showPassword, setShowPassword] = useState(false);
-    const navigate = useNavigate(); 
+const AnimatedLogo = () => {
+  const styles = {
+    svg: {
+      width: "100px",
+      height: "100px",
+      stroke: "#5D4037",
+      strokeWidth: 3,
+      fill: "none",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+    },
+    path: {
+      strokeDasharray: 1000,
+      strokeDashoffset: 1000,
+      animation: "draw 2s ease-in-out forwards",
+    },
+  };
+  return (
+    <div>
+      {" "}
+      <style> {`@keyframes draw { to { stroke-dashoffset: 0; } }`} </style>{" "}
+      <svg viewBox="0 0 100 100" style={styles.svg}>
+        {" "}
+        <path
+          d="M20 30 L 80 30 L 80 50 L 20 50 Z"
+          style={{ ...styles.path, animationDelay: "0s" }}
+        />{" "}
+        <path
+          d="M25 50 L 25 80"
+          style={{ ...styles.path, animationDelay: "0.5s" }}
+        />{" "}
+        <path
+          d="M75 50 L 75 80"
+          style={{ ...styles.path, animationDelay: "0.7s" }}
+        />{" "}
+        <path
+          d="M20 30 L 30 10 L 70 10 L 80 30"
+          style={{ ...styles.path, animationDelay: "1s" }}
+        />{" "}
+      </svg>{" "}
+    </div>
+  );
+};
 
-    const validate = () => {
-        const errors = {};
-        if (!name.trim()) {
-            errors.name = 'Name is required';
-        } else if (name.length < 2) {
-            errors.name = 'Name must be at least 2 characters';
-        } else if (!/^[a-zA-Z\s]+$/.test(name)) {
-            errors.name = 'Name must contain only letters';
-        }
-        if (!email) {
-            errors.email = 'Email is required';
-        } else if (!/\S+@\S+\.\S+/.test(email)) {
-            errors.email = 'Email address is invalid';
-        }
-        if (!password) {
-            errors.password = 'Password is required';
-        } else if (password.length < 8) {
-            errors.password = 'Password must be at least 8 characters';
-        } else if (/\s/.test(password)) {
-            errors.password = 'Password must not contain spaces';
-        }
-        return errors;
-    };
+const Signup = () => {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("User");
+  const [errors, setErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState({
+    label: "",
+    color: "transparent",
+  });
+  const [loading, setLoading] = useState(false);
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        const validationErrors = validate();
-        if (Object.keys(validationErrors).length > 0) {
-            setErrors(validationErrors);
-        } else {
-            const roleValue = role === "User" ? 1 : 2;
+  const navigate = useNavigate();
+  const { width } = useWindowSize();
+  const isMobile = width < 768;
 
-            axios.post('http://localhost:3001/register', { name, email, password, role: roleValue })
-                .then(result => {
-                    console.log(result);
-                    alert('Registration successful! Redirecting to login...');
-                    navigate('/');
-                })
-                .catch(err => {
-                    console.log(err);
-                    setErrors({ 
-                        submit: err.response?.data?.message || 
-                               'Failed to register. Please check your information and try again.' 
-                    });
-                });
-        }
-    };
+  const validate = () => {
+    const errors = {};
+    if (!name.trim()) {
+      errors.name = "Name is required";
+    } else if (name.length < 2) {
+      errors.name = "Name must be at least 2 characters";
+    } else if (!/^[a-zA-Z\s]+$/.test(name)) {
+      errors.name = "Name must contain only letters";
+    }
+    if (!email) {
+      errors.email = "Email is required";
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      errors.email = "Email address is invalid";
+    }
+    if (!password) {
+      errors.password = "Password is required";
+    } else if (password.length < 8) {
+      errors.password = "Password must be at least 8 characters";
+    }
+    return errors;
+  };
+  const checkPasswordStrength = (pass) => {
+    let strength = 0;
+    if (pass.length > 7) strength++;
+    if (pass.match(/[a-z]/)) strength++;
+    if (pass.match(/[A-Z]/)) strength++;
+    if (pass.match(/[0-9]/)) strength++;
+    if (pass.match(/[^a-zA-Z0-9]/)) strength++;
+    switch (strength) {
+      case 0:
+      case 1:
+      case 2:
+        return { label: "Weak", color: "#dc3545" };
+      case 3:
+        return { label: "Good", color: "#ffc107" };
+      case 4:
+      case 5:
+        return { label: "Strong", color: "#28a745" };
+      default:
+        return { label: "", color: "transparent" };
+    }
+  };
 
-    return (
-        <div className="d-flex justify-content-center align-items-center vh-100" 
-            style={{ 
-                backgroundColor: '#FFF3E0',
-                backgroundImage: 'url("/textures/subtle-paper.png")',
-                backgroundBlend: 'multiply'
-            }}>
-            <div className="p-5 rounded-4" 
-                style={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                    minWidth: '420px',
-                    boxShadow: '0 8px 32px rgba(139, 69, 19, 0.1)',
-                    border: '1px solid rgba(139, 69, 19, 0.1)'
-                }}>
-                <div className="text-center mb-4">
-                    <div className="d-flex align-items-center justify-content-center mb-3">
-                        <div className="mx-3" style={{ height: '2px', width: '40px', background: 'linear-gradient(to right, transparent, #8D6E63)' }}></div>
-                        <FaCouch size={24} style={{ color: '#8D6E63' }} />
-                        <div className="mx-3" style={{ height: '2px', width: '40px', background: 'linear-gradient(to left, transparent, #8D6E63)' }}></div>
-                    </div>
-                    <h2 className="mb-2" 
-                        style={{ 
-                            color: '#5D4037',
-                            fontFamily: '"Playfair Display", serif',
-                            fontSize: '2.2rem'
-                        }}>Create Account</h2>
-                    <p style={{ 
-                        color: '#8D6E63',
-                        fontFamily: '"Source Sans Pro", sans-serif',
-                        fontSize: '1.1rem'
-                    }}>Join our community today</p>
-                </div>
+  const handlePasswordChange = (e) => {
+    const newPassword = e.target.value;
+    setPassword(newPassword);
+    setPasswordStrength(checkPasswordStrength(newPassword));
+  };
 
-                <div className="position-relative">
-                    <form onSubmit={handleSubmit}>
-                        <div className="mb-4 position-relative">
-                            <label style={{ color: '#795548', fontFamily: '"Source Sans Pro", sans-serif' }}>
-                                <strong>Name</strong>
-                            </label>
-                            <div className="position-relative">
-                                <FaUser 
-                                    style={{
-                                        position: 'absolute',
-                                        left: '12px',
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                        color: '#8D6E63',
-                                        zIndex: 1
-                                    }}
-                                />
-                                <input 
-                                    type="text"
-                                    placeholder="Enter Name"
-                                    className="form-control rounded-3 border-0"
-                                    style={{
-                                        backgroundColor: '#FFF8E7',
-                                        padding: '0.8rem',
-                                        paddingLeft: '2.5rem',
-                                        fontSize: '1rem'
-                                    }}
-                                    onChange={(e) => setName(e.target.value)}
-                                />
-                            </div>
-                            {errors.name && <div className="text-danger mt-1" style={{ fontSize: '0.875rem' }}>{errors.name}</div>}
-                        </div>
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const validationErrors = validate();
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+    setErrors({});
+    setLoading(true);
 
-                        <div className="mb-4 position-relative">
-                            <label style={{ color: '#795548', fontFamily: '"Source Sans Pro", sans-serif' }}>
-                                <strong>Email</strong>
-                            </label>
-                            <div className="position-relative">
-                                <FaEnvelope 
-                                    style={{
-                                        position: 'absolute',
-                                        left: '12px',
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                        color: '#8D6E63',
-                                        zIndex: 1
-                                    }}
-                                />
-                                <input 
-                                    type="email"
-                                    placeholder="Enter Email"
-                                    className="form-control rounded-3 border-0"
-                                    style={{
-                                        backgroundColor: '#FFF8E7',
-                                        padding: '0.8rem',
-                                        paddingLeft: '2.5rem',
-                                        fontSize: '1rem'
-                                    }}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                />
-                            </div>
-                            {errors.email && <div className="text-danger mt-1" style={{ fontSize: '0.875rem' }}>{errors.email}</div>}
-                        </div>
+    const roleValue = role === "User" ? 1 : 2;
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name, role: roleValue } },
+    });
 
-                        <div className="mb-4 position-relative">
-                            <label style={{ color: '#795548', fontFamily: '"Source Sans Pro", sans-serif' }}>
-                                <strong>Password</strong>
-                            </label>
-                            <div className="position-relative">
-                                <FaLock 
-                                    style={{
-                                        position: 'absolute',
-                                        left: '12px',
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                        color: '#8D6E63',
-                                        zIndex: 1
-                                    }}
-                                />
-                                <input 
-                                    type={showPassword ? "text" : "password"}
-                                    placeholder="Enter Password"
-                                    className="form-control rounded-3 border-0"
-                                    style={{
-                                        backgroundColor: '#FFF8E7',
-                                        padding: '0.8rem',
-                                        paddingLeft: '2.5rem',
-                                        paddingRight: '2.5rem',
-                                        fontSize: '1rem'
-                                    }}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                />
-                                <div 
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    style={{
-                                        position: 'absolute',
-                                        right: '12px',
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                        cursor: 'pointer',
-                                        color: '#8D6E63'
-                                    }}
-                                >
-                                    {showPassword ? <FaEyeSlash /> : <FaEye />}
-                                </div>
-                            </div>
-                            {errors.password && <div className="text-danger mt-1" style={{ fontSize: '0.875rem' }}>{errors.password}</div>}
-                        </div>
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success(
+        "Registration successful! Please check your email to verify."
+      );
+      navigate("/");
+    }
+    setLoading(false);
+  };
 
-                        <div className="mb-4 position-relative">
-                            <label style={{ color: '#795548', fontFamily: '"Source Sans Pro", sans-serif' }}>
-                                <strong>Role</strong>
-                            </label>
-                            <div className="position-relative">
-                                <FaUserTag 
-                                    style={{
-                                        position: 'absolute',
-                                        left: '12px',
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                        color: '#8D6E63',
-                                        zIndex: 1
-                                    }}
-                                />
-                                <select 
-                                    className="form-control rounded-3 border-0"
-                                    style={{
-                                        backgroundColor: '#FFF8E7',
-                                        padding: '0.8rem',
-                                        paddingLeft: '2.5rem',
-                                        fontSize: '1rem',
-                                        appearance: 'auto'
-                                    }}
-                                    value={role}
-                                    onChange={(e) => setRole(e.target.value)}
-                                >
-                                    <option value="User">User</option>
-                                    <option value="Seller">Seller</option>
-                                </select>
-                            </div>
-                            {errors.role && <div className="text-danger mt-1" style={{ fontSize: '0.875rem' }}>{errors.role}</div>}
-                        </div>
+  const styles = {
+    page: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      minHeight: "100vh",
+      backgroundColor: "#F5EFE6",
+      fontFamily: "'Lato', sans-serif",
+      padding: "20px",
+    },
+    signupBox: {
+      display: "flex",
+      width: "100%",
+      maxWidth: "900px",
+      backgroundColor: "white",
+      borderRadius: "20px",
+      boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
+      overflow: "hidden",
+      flexDirection: isMobile ? "column" : "row",
+    },
+    leftPanel: {
+      flex: 1,
+      backgroundColor: "#FFF8E1",
+      padding: isMobile ? "40px 20px" : "50px",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "center",
+      alignItems: "center",
+      textAlign: "center",
+    },
+    rightPanel: {
+      flex: 1,
+      padding: isMobile ? "40px 20px" : "50px",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "center",
+    },
+    title: {
+      fontFamily: "'Playfair Display', serif",
+      color: "#5D4037",
+      fontSize: isMobile ? "2rem" : "2.5rem",
+      marginBottom: "10px",
+    },
+    subtitle: { color: "#8D6E63", fontSize: "1.1rem", marginBottom: "30px" },
+    inputGroup: { position: "relative", marginBottom: "20px" },
+    input: {
+      width: "100%",
+      padding: "15px 45px 15px 15px",
+      border: "1px solid #D7CCC8",
+      borderRadius: "10px",
+      outline: "none",
+      fontSize: "1rem",
+      transition: "border-color 0.3s ease, box-shadow 0.3s ease",
+    },
+    inputIcon: {
+      position: "absolute",
+      top: "50%",
+      right: "15px",
+      transform: "translateY(-50%)",
+      color: "#8D6E63",
+      cursor: "pointer",
+    },
+    select: {
+      width: "100%",
+      padding: "15px",
+      border: "1px solid #D7CCC8",
+      borderRadius: "10px",
+      outline: "none",
+      fontSize: "1rem",
+      backgroundColor: "white",
+      appearance: "none",
+    },
+    button: {
+      width: "100%",
+      padding: "15px",
+      backgroundColor: "#8D6E63",
+      color: "white",
+      border: "none",
+      borderRadius: "10px",
+      fontSize: "1.1rem",
+      fontWeight: "bold",
+      cursor: "pointer",
+      transition: "background-color 0.3s ease",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "10px",
+    },
+    secondaryButton: {
+      width: "100%",
+      padding: "15px",
+      backgroundColor: "transparent",
+      color: "#8D6E63",
+      border: "1px solid #8D6E63",
+      borderRadius: "10px",
+      fontSize: "1.1rem",
+      cursor: "pointer",
+      transition: "background-color 0.3s ease, color 0.3s ease",
+    },
+    divider: { textAlign: "center", margin: "20px 0", color: "#BDBDBD" },
+    errorText: { color: "#dc3545", fontSize: "0.875rem", marginTop: "5px" },
+    strengthBarContainer: {
+      display: "flex",
+      alignItems: "center",
+      marginTop: "8px",
+      gap: "10px",
+    },
+    strengthBar: {
+      width: "100%",
+      height: "6px",
+      backgroundColor: "#e0e0e0",
+      borderRadius: "6px",
+      overflow: "hidden",
+    },
+    strengthText: { fontSize: "0.8rem", whiteSpace: "nowrap" },
+  };
 
-                        {errors.submit && <div className="text-danger mt-1" style={{ fontSize: '0.875rem' }}>{errors.submit}</div>}
-                        <button 
-                            type="submit" 
-                            className="btn w-100 rounded-3 mb-4 position-relative overflow-hidden"
-                            style={{
-                                backgroundColor: '#8D6E63',
-                                color: 'white',
-                                padding: '0.8rem',
-                                transition: 'all 0.3s ease',
-                                boxShadow: '0 4px 12px rgba(141, 110, 99, 0.2)'
-                            }}>
-                            <span className="d-flex align-items-center justify-content-center">
-                                <span>Register</span>
-                                <div className="ms-2" style={{ 
-                                    width: '20px', 
-                                    height: '2px', 
-                                    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-                                    transition: 'all 0.3s ease' 
-                                }}></div>
-                            </span>
-                        </button>
-                    </form>
-                    <div className="text-center" style={{ color: '#795548' }}>
-                        <div className="d-flex align-items-center justify-content-center mb-3">
-                            <div style={{ flex: 1, height: '1px', background: 'linear-gradient(to right, transparent, #8D6E63, transparent)' }}></div>
-                            <span className="px-3">or</span>
-                            <div style={{ flex: 1, height: '1px', background: 'linear-gradient(to right, transparent, #8D6E63, transparent)' }}></div>
-                        </div>
-                        <p className="mb-3">Already have an Account?</p>
-                        <Link 
-                            to="/" 
-                            className="btn w-100 rounded-3 position-relative overflow-hidden"
-                            style={{
-                                backgroundColor: '#D7CCC8',
-                                color: '#5D4037',
-                                padding: '0.8rem',
-                                transition: 'all 0.3s ease'
-                            }}>
-                            Login
-                        </Link>
-                    </div>
-                </div>
-            </div>
+  return (
+    <div style={styles.page}>
+      <div style={styles.signupBox}>
+        {/* Left Panel */}
+        <div style={styles.leftPanel}>
+          <AnimatedLogo />
+          <h1 style={styles.title}>AR Furniture</h1>
+          <p style={styles.subtitle}>Begin your journey with us.</p>
         </div>
-    );
-}
+
+        {/* Right Panel */}
+        <div style={styles.rightPanel}>
+          <h2
+            style={{ ...styles.title, textAlign: isMobile ? "center" : "left" }}
+          >
+            Create Your Account
+          </h2>
+          <form onSubmit={handleSubmit}>
+            {/* Name Input */}
+            <div style={styles.inputGroup}>
+              <input
+                type="text"
+                placeholder="Full Name"
+                style={styles.input}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+              {errors.name && <p style={styles.errorText}>{errors.name}</p>}
+            </div>
+
+            {/* Email Input */}
+            <div style={styles.inputGroup}>
+              <input
+                type="email"
+                placeholder="Email Address"
+                style={styles.input}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              {errors.email && <p style={styles.errorText}>{errors.email}</p>}
+            </div>
+
+            {/* Password Input */}
+            <div style={styles.inputGroup}>
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Password (min. 8 characters)"
+                style={styles.input}
+                value={password}
+                onChange={handlePasswordChange}
+              />
+              <span
+                style={styles.inputIcon}
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
+              </span>
+              {errors.password && (
+                <p style={styles.errorText}>{errors.password}</p>
+              )}
+              {/* Password Strength Meter */}
+              {password.length > 0 && (
+                <div style={styles.strengthBarContainer}>
+                  <div style={styles.strengthBar}>
+                    <div
+                      style={{
+                        width: `${
+                          passwordStrength.label === "Weak"
+                            ? 33
+                            : passwordStrength.label === "Good"
+                            ? 66
+                            : 100
+                        }%`,
+                        height: "100%",
+                        backgroundColor: passwordStrength.color,
+                        transition: "width 0.3s ease",
+                      }}
+                    ></div>
+                  </div>
+                  <span
+                    style={{
+                      ...styles.strengthText,
+                      color: passwordStrength.color,
+                    }}
+                  >
+                    {passwordStrength.label}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Role Selection */}
+            <div style={styles.inputGroup}>
+              <select
+                style={styles.select}
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+              >
+                <option value="User">I am a Customer</option>
+                <option value="Seller">I am a Seller</option>
+              </select>
+            </div>
+
+            {/* Submit Button */}
+            <button type="submit" style={styles.button} disabled={loading}>
+              {loading ? "Creating Account..." : "Register"}
+            </button>
+          </form>
+
+          <p style={styles.divider}>or</p>
+
+          {/* Login Link */}
+          <Link to="/" style={{ textDecoration: "none" }}>
+            <button style={styles.secondaryButton}>
+              Already have an account? Login
+            </button>
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default Signup;
