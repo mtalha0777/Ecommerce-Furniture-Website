@@ -1,26 +1,25 @@
-import React, { useState, useEffect , useCallback} from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../utils/supabaseClient";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import AddProductModal from "../product/AddProductModal";
-
+import EditProductModal from "../product/EditProductModal";
+import ViewProductModal from "../product/ViewProductModal";
+import ProductImageSlider from "../product/ProductImageSlider";
 // Icons
 import {
   FaStore,
   FaBox,
   FaShoppingCart,
-  FaDollarSign,
   FaPlus,
   FaEye,
   FaEdit,
   FaTrash,
   FaMapMarkerAlt,
-  FaImage,
   FaCalendarAlt,
   FaUser,
 } from "react-icons/fa";
 
-// --- RESPONSIVENESS HOOK ---
 const useWindowSize = () => {
   const [windowSize, setWindowSize] = useState({
     width: window.innerWidth,
@@ -35,23 +34,24 @@ const useWindowSize = () => {
   }, []);
   return windowSize;
 };
-
 const SellerDashboard = () => {
-  // --- STATE ---
   const [shopData, setShopData] = useState(null);
   const [products, setProducts] = useState([]);
-  const [orders, setOrders] = useState([]); // Add orders state
+  const [orders, setOrders] = useState([]);
   const [stats, setStats] = useState({
     totalProducts: 0,
     totalOrders: 0,
-    totalRevenue: 0,
   });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const navigate = useNavigate();
 
-  // --- RESPONSIVENESS ---
+ 
   const { width } = useWindowSize();
   const isMobile = width < 768;
   const isTablet = width >= 768 && width < 1024;
@@ -106,7 +106,7 @@ const SellerDashboard = () => {
         setProducts(validProducts);
 
         // Fetch orders that contain products from this shop
-        const productIds = validProducts.map(p => p.id);
+        const productIds = validProducts.map((p) => p.id);
         let shopOrders = [];
         let totalRevenue = 0;
 
@@ -120,19 +120,13 @@ const SellerDashboard = () => {
             console.error("Error fetching orders:", ordersError);
           } else {
             // Filter orders that contain products from this shop
-            shopOrders = (allOrders || []).filter(order => {
-              if (!order.products || !Array.isArray(order.products)) return false;
-              return order.products.some(product => productIds.includes(product.product_id));
+            shopOrders = (allOrders || []).filter((order) => {
+              if (!order.products || !Array.isArray(order.products))
+                return false;
+              return order.products.some((product) =>
+                productIds.includes(product.product_id)
+              );
             });
-
-            // Calculate total revenue from orders containing this shop's products
-            totalRevenue = shopOrders.reduce((sum, order) => {
-              // Calculate revenue only for this shop's products in each order
-              const shopProductRevenue = order.products
-                .filter(product => productIds.includes(product.product_id))
-                .reduce((productSum, product) => productSum + parseFloat(product.price || 0), 0);
-              return sum + shopProductRevenue;
-            }, 0);
           }
         }
 
@@ -142,7 +136,6 @@ const SellerDashboard = () => {
           totalOrders: shopOrders.length,
           totalRevenue: totalRevenue,
         });
-
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
         toast.error("Could not load your dashboard data.");
@@ -153,6 +146,16 @@ const SellerDashboard = () => {
     fetchDashboardData();
   }, [navigate]);
 
+  // --- HANDLERS FOR MODALS ---
+  const handleOpenViewModal = (product) => {
+    setSelectedProduct(product);
+    setIsViewModalOpen(true);
+  };
+
+  const handleOpenEditModal = (product) => {
+    setSelectedProduct(product);
+    setIsEditModalOpen(true);
+  };
   // --- DELETE PRODUCT ---
   const handleDeleteProduct = async (productId) => {
     if (
@@ -163,7 +166,7 @@ const SellerDashboard = () => {
       return;
 
     const loadingToast = toast.loading("Deleting product...");
-    
+
     try {
       // First check if the product exists
       const { data: existingProduct, error: checkError } = await supabase
@@ -193,37 +196,46 @@ const SellerDashboard = () => {
 
       // Check if anything was actually deleted
       if (!data || data.length === 0) {
-        throw new Error("No rows were deleted. Product might not exist or you don't have permission.");
+        throw new Error(
+          "No rows were deleted. Product might not exist or you don't have permission."
+        );
       }
 
       // Update local state only if deletion was successful
       const updatedProducts = products.filter((p) => p.id !== productId);
       setProducts(updatedProducts);
       setStats((prev) => ({ ...prev, totalProducts: updatedProducts.length }));
-      
-      toast.success(`Product "${existingProduct.name}" deleted successfully`, { id: loadingToast });
 
+      toast.success(`Product "${existingProduct.name}" deleted successfully`, {
+        id: loadingToast,
+      });
     } catch (error) {
-      toast.error(`Failed to delete product: ${error.message}`, { id: loadingToast });
-      
+      toast.error(`Failed to delete product: ${error.message}`, {
+        id: loadingToast,
+      });
+
       // Log detailed error information
       console.error("Delete Product Error Details:", {
         productId,
         error: error.message,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   };
 
   const handleProductAdded = (newProduct) => {
-    setProducts(prevProducts => [newProduct, ...prevProducts]); 
-    setStats(prev => ({ ...prev, totalProducts: prev.totalProducts + 1 }));
+    setProducts((prevProducts) => [newProduct, ...prevProducts]);
+    setStats((prev) => ({ ...prev, totalProducts: prev.totalProducts + 1 }));
   };
 
-   const handleCloseModal = useCallback(() => {
-        setIsModalOpen(false);
-    }, []); 
-
+  const handleCloseModal = useCallback(() => {
+    setIsModalOpen(false);
+  }, []);
+  const handleProductUpdated = (updatedProduct) => {
+    setProducts((prevProducts) =>
+      prevProducts.map((p) => (p.id === updatedProduct.id ? updatedProduct : p))
+    );
+  };
   const styles = {
     page: {
       minHeight: "100vh",
@@ -318,8 +330,8 @@ const SellerDashboard = () => {
       fontSize: isMobile ? "0.95rem" : "1.1rem",
       fontWeight: "500",
       color: theme.secondaryText,
-      borderBottomWidth: "3px", 
-      borderBottomStyle: "solid", 
+      borderBottomWidth: "3px",
+      borderBottomStyle: "solid",
       borderBottomColor: "transparent",
       transition: "all 0.3s ease",
       whiteSpace: "nowrap",
@@ -346,9 +358,7 @@ const SellerDashboard = () => {
     },
     productsGrid: {
       display: "grid",
-      gridTemplateColumns: isMobile
-        ? "1fr"
-        : "repeat(auto-fit, minmax(280px, 1fr))",
+      gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
       gap: "20px",
     },
     productCard: {
@@ -406,19 +416,19 @@ const SellerDashboard = () => {
     },
     productActions: {
       display: "flex",
-      gap: "1px",
-      backgroundColor: "#f0f0f0",
-      marginTop: "auto",
+      justifyContent: "flex-end",
+      padding: "10px 15px",
+      borderTop: `1px solid ${theme.lightBorder}`,
+      gap: "10px",
     },
     actionBtn: {
-      flex: 1,
-      padding: "12px",
+      background: "none",
       border: "none",
       cursor: "pointer",
-      fontSize: "1rem",
-      color: "white",
+      fontSize: "1.2rem",
+      color: theme.secondaryText,
+      transition: "color 0.2s ease-in-out",
     },
-
     // Orders styles
     orderCard: {
       backgroundColor: "#fdfdfd",
@@ -504,7 +514,7 @@ const SellerDashboard = () => {
     },
   };
 
-  // --- LOADING ---
+ 
   if (loading) {
     return (
       <div style={styles.loadingContainer}>
@@ -556,13 +566,6 @@ const SellerDashboard = () => {
           <div>
             <h3 style={styles.statValue}>{stats.totalOrders}</h3>
             <p style={styles.statTitle}>Total Orders</p>
-          </div>
-        </div>
-        <div style={styles.statCard}>
-          <FaDollarSign style={styles.statIcon} />
-          <div>
-            <h3 style={styles.statValue}>Rs. {stats.totalRevenue}</h3>
-            <p style={styles.statTitle}>Total Revenue</p>
           </div>
         </div>
       </div>
@@ -634,19 +637,9 @@ const SellerDashboard = () => {
                       className="productCard"
                     >
                       <div style={styles.productImageContainer}>
-                        {product.image_urls && product.image_urls[0] ? (
-                          <img
-                            src={product.image_urls[0]}
-                            alt={product.name}
-                            style={styles.productImg}
-                            className="productImg"
-                          />
-                        ) : (
-                          <div style={styles.noImage}>
-                            <FaImage />
-                          </div>
-                        )}
-                      </div>
+                                        
+                                        <ProductImageSlider images={product.image_urls} isMobile={isMobile} />
+                                    </div>
                       <div style={styles.productInfo}>
                         <h4 style={styles.productName}>{product.name}</h4>
                         <p style={styles.productPrice}>Rs. {product.price}</p>
@@ -656,27 +649,25 @@ const SellerDashboard = () => {
                       </div>
                       <div style={styles.productActions}>
                         <button
-                          style={{
-                            ...styles.actionBtn,
-                            backgroundColor: theme.info,
-                          }}
+                          style={styles.actionBtn}
+                          className="actionBtn-view"
+                          onClick={() => handleOpenViewModal(product)}
                         >
                           <FaEye />
                         </button>
                         <button
-                          style={{
-                            ...styles.actionBtn,
-                            backgroundColor: theme.warning,
-                          }}
+                          style={styles.actionBtn}
+                          className="actionBtn-edit"
+                          onClick={() => handleOpenEditModal(product)}
                         >
                           <FaEdit />
                         </button>
                         <button
-                          style={{
-                            ...styles.actionBtn,
-                            backgroundColor: theme.danger,
-                          }}
-                          onClick={() => handleDeleteProduct(product.id)}
+                          style={styles.actionBtn}
+                          className="actionBtn-delete"
+                          onClick={() =>
+                            handleDeleteProduct(product.id, product.name)
+                          }
                         >
                           <FaTrash />
                         </button>
@@ -692,34 +683,39 @@ const SellerDashboard = () => {
             <div>
               {orders.length === 0 ? (
                 <div style={styles.noData}>
-                  <p>Your customer orders will appear here once they are placed.</p>
+                  <p>
+                    Your customer orders will appear here once they are placed.
+                  </p>
                 </div>
               ) : (
                 <div>
                   {orders.map((order) => {
                     // Filter products that belong to this shop
-                    const shopProducts = order.products?.filter(product => 
-                      products.some(p => p.id === product.product_id)
-                    ) || [];
-                    
-                    const shopOrderTotal = shopProducts.reduce((sum, product) => 
-                      sum + parseFloat(product.price || 0), 0
-                    );
+                    const shopProducts =
+                      order.products?.filter((product) =>
+                        products.some((p) => p.id === product.product_id)
+                      ) || [];
 
+                    const shopOrderTotal = shopProducts.reduce(
+                      (sum, product) => sum + parseFloat(product.price || 0),
+                      0
+                    );
+                    if (shopProducts.length === 0) return null;
                     return (
                       <div key={order.id} style={styles.orderCard}>
                         <div style={styles.orderHeader}>
                           <div style={styles.orderId}>Order #{order.id}</div>
                           <div style={styles.orderDate}>
-                            <FaCalendarAlt /> {new Date(order.created_at).toLocaleDateString()}
+                            <FaCalendarAlt />{" "}
+                            {new Date(order.created_at).toLocaleDateString()}
                           </div>
                           <div style={styles.orderStatus}>{order.status}</div>
                         </div>
-                        
+
                         <div style={styles.orderCustomer}>
                           <FaUser /> {order.name}
                         </div>
-                        
+
                         <div style={styles.orderProducts}>
                           <strong>Your Products in this order:</strong>
                           {shopProducts.map((product, index) => (
@@ -729,7 +725,7 @@ const SellerDashboard = () => {
                             </div>
                           ))}
                         </div>
-                        
+
                         <div style={styles.orderTotal}>
                           Your Revenue: Rs. {shopOrderTotal}
                         </div>
@@ -744,12 +740,27 @@ const SellerDashboard = () => {
       </div>
 
       {/* Add Product Modal */}
-         <AddProductModal
+      <AddProductModal
         isOpen={isModalOpen}
-        onClose={handleCloseModal} 
+        onClose={handleCloseModal}
         theme={theme}
         isMobile={isMobile}
-        onProductAdded={handleProductAdded} 
+        onProductAdded={handleProductAdded}
+      />
+      <ViewProductModal
+        isOpen={isViewModalOpen}
+        onClose={() => setIsViewModalOpen(false)}
+        product={selectedProduct}
+        theme={theme}
+        isMobile={isMobile}
+      />
+      <EditProductModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        product={selectedProduct}
+        onProductUpdated={handleProductUpdated}
+        theme={theme}
+        isMobile={isMobile}
       />
     </div>
   );

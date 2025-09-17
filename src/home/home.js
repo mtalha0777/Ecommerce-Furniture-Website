@@ -1,24 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../utils/supabaseClient';
-import AdminHeader from '../components/admin/AdminHeader';
-import SellerHeader from '../components/seller/SellerHeader';
-import ProductsPage from '../components/product/products';
-import Footer from '../components/footer/footer';
+import React, { useState, useEffect } from "react";
+import { supabase } from "../utils/supabaseClient";
+import AdminHeader from "../components/admin/AdminHeader";
+import SellerHeader from "../components/seller/SellerHeader";
+import ProductsPage from "../components/product/products";
+import Footer from "../components/footer/footer";
 
 function Home() {
-  
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchUserData = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       if (session) {
         const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('role') 
-          .eq('id', session.user.id)
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
           .single();
 
         if (error) {
@@ -32,8 +33,10 @@ function Home() {
 
     fetchUserData();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-        fetchUserData();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      fetchUserData();
     });
 
     return () => {
@@ -53,7 +56,7 @@ function Home() {
         return <SellerHeader />;
       case 1:
       default:
-        return ;
+        return;
     }
   };
 
@@ -66,11 +69,7 @@ function Home() {
       {renderHeader()}
 
       <main>
-
-        <div className="d-flex justify-content-center my-4">
-
-        </div>
-
+        <div className="d-flex justify-content-center my-4"></div>
         <ProductsPage />
       </main>
 

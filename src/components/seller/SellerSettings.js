@@ -21,7 +21,8 @@ const SellerSettings = () => {
   const [passwordStrength, setPasswordStrength] = useState({ score: 0, label: '', color: 'grey' });
   const [showPassword, setShowPassword] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-
+const [isEditingInfo, setIsEditingInfo] = useState(false);
+const [originalSellerInfo, setOriginalSellerInfo] = useState(null);
   const { width } = useWindowSize();
   const isMobile = width < 768;
 
@@ -60,7 +61,49 @@ const SellerSettings = () => {
     fetchSellerData();
   }, []);
 
+ const handleInfoChange = (e) => {
+    const { name, value } = e.target;
+    setSellerInfo(prev => ({ ...prev, [name]: value }));
+  };
 
+  // This function saves the changes to Supabase
+  const handleInfoUpdate = async () => {
+    setIsUpdating(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not found for update.");
+
+      // Create promises to update both tables
+      const updateProfile = supabase.from('profiles')
+        .update({ name: sellerInfo.name })
+        .eq('id', user.id);
+        
+      const updateShop = supabase.from('shops')
+        .update({ shopName: sellerInfo.shopName })
+        .eq('owner_id', user.id);
+
+      // Run both updates in parallel
+      const [profileResult, shopResult] = await Promise.all([updateProfile, updateShop]);
+
+      if (profileResult.error) throw profileResult.error;
+      if (shopResult.error) throw shopResult.error;
+
+      toast.success("Information updated successfully!");
+      setIsEditingInfo(false); // Switch back to view mode
+      
+    } catch (error) {
+      toast.error(`Update failed: ${error.message}`);
+      console.error("Info update error:", error);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // This function will handle the "Cancel" button
+  const handleCancelEdit = () => {
+    setSellerInfo(originalSellerInfo); // Revert to original data
+    setIsEditingInfo(false);
+  };
   const checkPasswordStrength = (password) => {
     let score = 0;
     if (password.length > 8) score++;
@@ -172,12 +215,55 @@ const SellerSettings = () => {
     <div style={styles.page}>
       <div style={styles.container}>
         <h1 style={{ ...styles.title, textAlign: 'center' }}>Shop & Account Settings</h1>
+   <div style={styles.card}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h2 style={{...styles.title, margin: 0}}>Your Information</h2>
+            {!isEditingInfo && (
+              <button onClick={() => { setIsEditingInfo(true); setOriginalSellerInfo(sellerInfo); }} style={{...styles.button, width: 'auto', padding: '8px 16px' }}>
+                Edit
+              </button>
+            )}
+          </div>
 
-        <div style={styles.card}>
-          <h2 style={styles.title}>Your Information</h2>
-          <div style={styles.infoItem}><FaUser color={theme.accent} /> <span>{sellerInfo.name}</span></div>
-          <div style={styles.infoItem}><FaEnvelope color={theme.accent} /> <span>{sellerInfo.email}</span></div>
-          <div style={styles.infoItem}><FaStore color={theme.accent} /> <span>{sellerInfo.shopName}</span></div>
+          {isEditingInfo ? (
+            // --- EDITING VIEW ---
+            <div>
+              <div style={styles.inputGroup}>
+                <input
+                  type="text"
+                  name="name"
+                  value={sellerInfo.name}
+                  onChange={handleInfoChange}
+                  style={styles.input}
+                />
+              </div>
+              <div style={styles.infoItem}><FaEnvelope color={theme.accent} /> <span>{sellerInfo.email}</span></div>
+              <div style={styles.inputGroup}>
+                <input
+                  type="text"
+                  name="shopName"
+                  value={sellerInfo.shopName}
+                  onChange={handleInfoChange}
+                  style={styles.input}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                <button onClick={handleCancelEdit} style={{...styles.button, backgroundColor: theme.secondaryText}}>
+                  Cancel
+                </button>
+                <button onClick={handleInfoUpdate} disabled={isUpdating} style={styles.button}>
+                  {isUpdating ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            // --- DISPLAY VIEW (Your original code) ---
+            <div>
+              <div style={styles.infoItem}><FaUser color={theme.accent} /> <span>{sellerInfo.name}</span></div>
+              <div style={styles.infoItem}><FaEnvelope color={theme.accent} /> <span>{sellerInfo.email}</span></div>
+              <div style={styles.infoItem}><FaStore color={theme.accent} /> <span>{sellerInfo.shopName}</span></div>
+            </div>
+          )}
         </div>
 
         {/* Update Password Card */}

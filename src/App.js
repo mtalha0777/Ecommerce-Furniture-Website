@@ -28,6 +28,8 @@ import UserProfile from "./components/users/userProfile";
 import AdminDashboard from "./components/admin/AdminDashboard";
 import AdminHeader from "./components/admin/AdminHeader";
 import AdminSettings from "./components/admin/AdminSettings";
+import EditProductModal from "./components/product/EditProductModal";
+import ViewProductModal from "./components/product/ViewProductModal";
 import { Toaster } from "react-hot-toast";
 function App() {
   const location = useLocation(); // Get the current location
@@ -128,7 +130,7 @@ function App() {
             </ProtectedRoute>
           }
         />
-        
+
         <Route
           path="/productList"
           element={
@@ -137,8 +139,27 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="/product/:id"
-           element={
+
+        <Route
+          path="/editproduct/:id"
+          element={
+            <ProtectedRoute>
+              <EditProductModal />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/viewproduct/:id"
+          element={
+            <ProtectedRoute>
+              <ViewProductModal />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/product/:id"
+          element={
             <ProtectedRoute>
               <ProductDetail />
             </ProtectedRoute>
