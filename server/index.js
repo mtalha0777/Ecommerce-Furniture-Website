@@ -30,7 +30,8 @@ const fs = require('fs');
 const app = express();
 app.use(express.json());
 app.use(cors({
-    origin: process.env.CLIENT_ORIGIN || 'http://localhost:3000',
+    // One or more allowed frontends, comma separated.
+    origin: (process.env.CLIENT_ORIGIN || 'http://localhost:3000').split(',').map((o) => o.trim().replace(/\/$/, '')),
     credentials: true
 }));
 
@@ -1302,6 +1303,14 @@ async function start() {
     } catch (err) {
         console.error("MongoDB connection error:", err.message);
         process.exit(1);
+    }
+
+    if (process.env.SEED_DEMO === 'true') {
+        try {
+            await require('./seedDemo').seedDemo();
+        } catch (err) {
+            console.error('Demo seed failed:', err.message);
+        }
     }
 
     const port = Number(process.env.PORT) || 3001;
