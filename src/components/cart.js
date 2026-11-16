@@ -6,7 +6,9 @@ import { Elements, CardElement, useStripe, useElements } from '@stripe/react-str
 import { API_URL } from '../config';
 
 // Initialize Stripe with your publishable key
-const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY);
+// Without a publishable key Stripe stays disabled instead of crashing the page.
+const stripeKey = process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY;
+const stripePromise = stripeKey ? loadStripe(stripeKey) : null;
 
 // Create a new CheckoutForm component
 function CheckoutForm({ totalAmount, handleSubmit }) {
