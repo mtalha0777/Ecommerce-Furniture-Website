@@ -7,6 +7,7 @@ import login from './login.jpeg';
 import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaTools, FaChair } from 'react-icons/fa';
 import { BiSolidCabinet } from 'react-icons/bi';
 import { GiWoodBeam, GiSawedOffShotgun } from 'react-icons/gi';
+import { API_URL } from '../config';
 
 function Login() {
     const [email, setEmail] = useState('');
@@ -22,7 +23,7 @@ function Login() {
         localStorage.removeItem('userID');
     }, []);
 
-    // axios.get('http://localhost:3001/check-auth')
+    // axios.get(`${API_URL}/check-auth`)
     // .then(response => {
     //     // Handle response
     // })
@@ -32,7 +33,7 @@ function Login() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const result = await axios.post('http://localhost:3001/login', { email, password });
+            const result = await axios.post(`${API_URL}/login`, { email, password });
             if (result.data.message === "Success") {
                 const userID = result.data.userID;
                 // Store values in localStorage

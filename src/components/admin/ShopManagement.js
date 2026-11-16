@@ -10,6 +10,7 @@ import CategoryIcon from '@mui/icons-material/Category';
 import CloseIcon from '@mui/icons-material/Close';
 import DeleteIcon from '@mui/icons-material/Delete';
 import axios from 'axios';
+import { API_URL } from '../../config';
 
 function ShopManagement({ shops }) {
     const [selectedShop, setSelectedShop] = useState(null);
@@ -19,7 +20,7 @@ function ShopManagement({ shops }) {
 
     const handleShopClick = async (shop) => {
         try {
-            const response = await axios.post('http://localhost:3001/productsByShop', 
+            const response = await axios.post(`${API_URL}/productsByShop`, 
                 { shopID: shop._id },
                 { headers: { 'Authorization': `Bearer ${authToken}` }}
             );
@@ -39,7 +40,7 @@ function ShopManagement({ shops }) {
 
     const handleDeleteProduct = async (productId) => {
         try {
-            await axios.delete('http://localhost:3001/deleteProduct', {
+            await axios.delete(`${API_URL}/deleteProduct`, {
                 headers: { 'Authorization': `Bearer ${authToken}` },
                 data: { id: productId }
             });
@@ -72,7 +73,7 @@ function ShopManagement({ shops }) {
                             <CardContent>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
                                     <Avatar
-                                        src={shop.profilePicture ? `http://localhost:3001/${shop.profilePicture}` : null}
+                                        src={shop.profilePicture ? `${API_URL}/${shop.profilePicture}` : null}
                                         sx={{ width: 60, height: 60 }}
                                     >
                                         <StorefrontIcon />
@@ -145,7 +146,7 @@ function ShopManagement({ shops }) {
                                     <TableRow key={product._id}>
                                         <TableCell>
                                             <Avatar
-                                                src={product.images?.[0] ? `http://localhost:3001/uploads/${product.images[0]}` : null}
+                                                src={product.images?.[0] ? `${API_URL}/uploads/${product.images[0]}` : null}
                                                 variant="square"
                                                 sx={{ width: 50, height: 50 }}
                                             />

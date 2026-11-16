@@ -20,6 +20,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { ArrowBackIos, ArrowForwardIos, Edit, AddAPhoto, Delete } from "@mui/icons-material";
+import { API_URL } from '../../config';
 
 const UserProfile = () => {
   const [favorites, setFavorites] = useState([]);
@@ -43,7 +44,7 @@ const UserProfile = () => {
     const fetchUserData = async () => {
       try {
         const response = await axios.get(
-          `http://localhost:3001/user/${userID}`,
+          `${API_URL}/user/${userID}`,
           {
             headers: { 'Authorization': `Bearer ${authToken}` }
           }
@@ -69,7 +70,7 @@ const UserProfile = () => {
       setLoading(true);
       try {
         const response = await axios.get(
-          `http://localhost:3001/favorites/${userID}`,
+          `${API_URL}/favorites/${userID}`,
           {
             headers: { 'Authorization': `Bearer ${authToken}` }
           }
@@ -92,7 +93,7 @@ const UserProfile = () => {
     try {
       setIsUploading(true);
       const response = await axios.put(
-        `http://localhost:3001/user/${userID}`,
+        `${API_URL}/user/${userID}`,
         {
           name: editedUser.name,
           phoneNumber: editedUser.phoneNumber,
@@ -137,7 +138,7 @@ const UserProfile = () => {
       formData.append('profilePicture', file);
       
       const response = await axios.put(
-        `http://localhost:3001/user/${userID}/profile-picture`,
+        `${API_URL}/user/${userID}/profile-picture`,
         formData,
         {
           headers: {
@@ -166,7 +167,7 @@ const UserProfile = () => {
   const handleDeleteFavorite = async (favoriteId) => {
     try {
       const response = await axios.delete(
-        `http://localhost:3001/favorites/${favoriteId}`,
+        `${API_URL}/favorites/${favoriteId}`,
         {
           headers: { 'Authorization': `Bearer ${authToken}` }
         }
@@ -203,7 +204,7 @@ const UserProfile = () => {
           <Box sx={{ position: 'relative' }}>
             <Avatar
               alt={editedUser.name}
-              src={`http://localhost:3001/${editedUser.profilePicture}`}
+              src={`${API_URL}/${editedUser.profilePicture}`}
               sx={{ width: 80, height: 80, mr: 2 }}
             />
             {isEditing && (
@@ -300,7 +301,7 @@ const UserProfile = () => {
                         component="img"
                         height="140"
                         image={favorite.product?.images?.[0] 
-                          ? `http://localhost:3001/uploads/${favorite.product.images[0]}`
+                          ? `${API_URL}/uploads/${favorite.product.images[0]}`
                           : '/placeholder-image.jpg'} // Add a placeholder image to your public folder
                         alt={favorite.product?.productName || favorite.productName}
                         sx={{

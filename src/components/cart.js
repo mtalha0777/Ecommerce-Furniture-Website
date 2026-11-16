@@ -3,6 +3,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import './cart.css';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { API_URL } from '../config';
 
 // Initialize Stripe with your publishable key
 const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY);
@@ -49,7 +50,7 @@ function CheckoutForm({ totalAmount, handleSubmit }) {
                     return;
                 }
 
-                const response = await fetch('http://localhost:3001/create-payment-intent', {
+                const response = await fetch(`${API_URL}/create-payment-intent`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -247,7 +248,7 @@ function Cart() {
 
         const fetchCartItems = async () => {
             try {
-                const response = await fetch(`http://localhost:3001/cart/${userID}`, {
+                const response = await fetch(`${API_URL}/cart/${userID}`, {
                     headers: {
                         'Authorization': `Bearer ${authToken}`
                     }
@@ -266,7 +267,7 @@ function Cart() {
         try {
             console.log('productID: ', productID);
             const userID = localStorage.getItem('userID');
-            const response = await fetch(`http://localhost:3001/cart/${userID}/remove/${productID}`, {
+            const response = await fetch(`${API_URL}/cart/${userID}/remove/${productID}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${authToken}`
@@ -311,7 +312,7 @@ function Cart() {
         };
     
         try {
-            const response = await fetch('http://localhost:3001/orders', {
+            const response = await fetch(`${API_URL}/orders`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -326,7 +327,7 @@ function Cart() {
             }
     
             // Clear the cart
-            await fetch('http://localhost:3001/clearcart', {
+            await fetch(`${API_URL}/clearcart`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json',
@@ -360,7 +361,7 @@ function Cart() {
                             <div key={index} className="card cart-item-card mb-3">
                                 <div className="row g-0">
                                     <div className="col-3"> {/* Reduced the image column size */}
-                                        <img src={`http://localhost:3001/uploads/${item.images[0]}`} className="img-fluid rounded-start cart-item-image" alt={item.productName} />
+                                        <img src={`${API_URL}/uploads/${item.images[0]}`} className="img-fluid rounded-start cart-item-image" alt={item.productName} />
                                     </div>
                                     <div className="col-9"> {/* Adjusted this column to 9 */}
                                         <div className="card-body p-2"> {/* Reduced padding */}

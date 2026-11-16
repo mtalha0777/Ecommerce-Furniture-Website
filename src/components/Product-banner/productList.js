@@ -25,6 +25,7 @@ import {
   AddShoppingCart,
   CheckCircle,
 } from "@mui/icons-material";
+import { API_URL } from '../../config';
 
 const ProductList = () => {
   const [products, setProdList] = useState([]);
@@ -47,7 +48,7 @@ const ProductList = () => {
         setLoading(true);
         try {
           const response = await axios.post(
-            `http://localhost:3001/searchedProduct`,
+            `${API_URL}/searchedProduct`,
             { searchTerm: category },
             {
               headers: {
@@ -76,7 +77,7 @@ const ProductList = () => {
     const userID = localStorage.getItem("userID");
 
     try {
-      const shopResponse = await axios.post(`http://localhost:3001/shop`, {
+      const shopResponse = await axios.post(`${API_URL}/shop`, {
         shopID: product.shopID,
       },
     
@@ -87,7 +88,7 @@ const ProductList = () => {
       });
       setShopDetails(shopResponse.data.shop);
 
-      const favoriteResponse = await axios.post(`http://localhost:3001/checkFavorite`, {
+      const favoriteResponse = await axios.post(`${API_URL}/checkFavorite`, {
         userID,
         productID: product._id,
         },
@@ -99,7 +100,7 @@ const ProductList = () => {
       );
       setIsFavorite(favoriteResponse.data.isFavorite);
 
-      const cartResponse = await axios.post(`http://localhost:3001/checkInCart`, {
+      const cartResponse = await axios.post(`${API_URL}/checkInCart`, {
         userID,
         productID: product._id,
         },
@@ -146,7 +147,7 @@ const ProductList = () => {
     }
 
     try {
-        const response = await axios.post("http://localhost:3001/favorite", {
+        const response = await axios.post(`${API_URL}/favorite`, {
             userID,
             productID,
             productName: selectedProduct.productName,
@@ -181,7 +182,7 @@ const ProductList = () => {
     }
 
     try {
-      const response = await axios.post("http://localhost:3001/addToCart", {
+      const response = await axios.post(`${API_URL}/addToCart`, {
         userID,
         productID,
         productName: selectedProduct.productName,
@@ -342,7 +343,7 @@ const ProductList = () => {
                     border: "1px solid #FFB300",
                     borderRadius: "8px",
                   }}
-                  image={`http://localhost:3001/uploads/${selectedProduct.images[currentImageIndex]}`}
+                  image={`${API_URL}/uploads/${selectedProduct.images[currentImageIndex]}`}
                   alt={`Product Image ${currentImageIndex + 1}`}
                 />
                 <IconButton
@@ -432,7 +433,7 @@ const HoverCard = ({ product, onClick }) => {
               borderTopLeftRadius: "12px",
               borderTopRightRadius: "12px",
             }}
-            image={`http://localhost:3001/uploads/${product.images[0]}`}
+            image={`${API_URL}/uploads/${product.images[0]}`}
             alt='No Image for this Product'
           />
         </Box>

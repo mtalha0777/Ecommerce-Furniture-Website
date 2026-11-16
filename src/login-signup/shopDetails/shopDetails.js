@@ -8,6 +8,7 @@ import {
   faTag,
 } from "@fortawesome/free-solid-svg-icons";
 import { useLocation, useNavigate } from "react-router-dom";
+import { API_URL } from '../../config';
 
 function ShopRegistration() {
   const location = useLocation();
@@ -84,7 +85,7 @@ function ShopRegistration() {
     // Get the token from localStorage
     const token = sessionStorage.getItem('authToken');
 
-    fetch("http://localhost:3001/createshop", {
+    fetch(`${API_URL}/createshop`, {
       method: "POST",
       headers: {
         'Authorization': `Bearer ${token}`

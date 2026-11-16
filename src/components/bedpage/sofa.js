@@ -3,6 +3,7 @@ import './bed.css';
 import SearchComponent from '../../components/SearchComponent';
 import ShowCourseComponent from '../../components/ShowCourseComponent';
 import { Link } from 'react-router-dom';
+import { API_URL } from '../../config';
 
 function Sofa() {
     const [sofas, setSofas] = useState([]);
@@ -12,7 +13,7 @@ function Sofa() {
     const [newSofa, setNewSofa] = useState({ name: '', price: '', imageUrl: '', description: '' });
 
     useEffect(() => {
-        fetch('http://localhost:3001/sofas')
+        fetch(`${API_URL}/sofas`)
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`Network response was not ok: ${response.statusText}`);
@@ -40,7 +41,7 @@ function Sofa() {
 
     const handleAddNewSofa = (event) => {
         event.preventDefault();
-        fetch('http://localhost:3001/sofas', {
+        fetch(`${API_URL}/sofas`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -62,7 +63,7 @@ function Sofa() {
     };
 
     const deleteSofaByName = (name) => {
-        fetch(`http://localhost:3001/sofas/${encodeURIComponent(name)}`, {
+        fetch(`${API_URL}/sofas/${encodeURIComponent(name)}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${sessionStorage.getItem('authToken')}` },
         })

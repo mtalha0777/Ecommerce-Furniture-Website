@@ -4,6 +4,7 @@ import { Elements, CardElement, useStripe, useElements } from '@stripe/react-str
 import axios from 'axios';
 import { Lock, CreditCard, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { API_URL } from '../../config';
 
 const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY);
 
@@ -25,7 +26,7 @@ const PaymentForm = ({ amount }) => {
         }
 
         try {
-            const response = await axios.post('http://localhost:3001/create-payment-intent', {
+            const response = await axios.post(`${API_URL}/create-payment-intent`, {
                 amount: amount * 100,
             });
 

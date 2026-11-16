@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import "./modal.css";
+import { API_URL } from '../../config';
 
 const AddProductModal = ({ isOpen, onClose }) => {
   const [productName, setProductName] = useState("");
@@ -46,7 +47,7 @@ const AddProductModal = ({ isOpen, onClose }) => {
     });
 
     try {
-      const response = await axios.post("http://localhost:3001/createproduct", formData, {
+      const response = await axios.post(`${API_URL}/createproduct`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
           'Authorization': `Bearer ${authToken}`

@@ -9,6 +9,11 @@ React (Create React App) frontend with an Express and MongoDB API in `server/`.
 3. Add `REACT_APP_STRIPE_PUBLISHABLE_KEY=pk_test_...` to a `.env.local` file in the project root.
 4. Start the API with `npm start` inside `server/` (port 3001), then the frontend with `npm start` in the root (port 3000).
 
+## Deployment
+
+- Frontend (Vercel): set `REACT_APP_API_URL` to the public URL of the API and `REACT_APP_STRIPE_PUBLISHABLE_KEY`. `vercel.json` routes all paths to the React app.
+- API: set `MONGO_URI`, `JWT_SECRET`, `STRIPE_SECRET_KEY` and `CLIENT_ORIGIN` (the frontend URL). The API stores uploaded images on disk, so it needs a host with a persistent disk.
+
 ## Tests
 
 - API: `npm test` inside `server/` (Jest and Supertest, no database needed).

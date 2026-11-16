@@ -6,6 +6,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 
 import images1 from './images1.jpeg';
 import signup from './signup.jpeg';
+import { API_URL } from '../config';
 
 function Signup() {
     const [name, setName] = useState('');
@@ -48,7 +49,7 @@ function Signup() {
         } else {
             const roleValue = role === "User" ? 1 : 2;
 
-            axios.post('http://localhost:3001/register', { name, email, password, role: roleValue })
+            axios.post(`${API_URL}/register`, { name, email, password, role: roleValue })
                 .then(result => {
                     console.log(result);
                     alert('Registration successful! Redirecting to login...');

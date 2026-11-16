@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Box, Typography, CardMedia, Button, CircularProgress } from '@mui/material';
 import axios from 'axios';
+import { API_URL } from '../../config';
 
 const ProductDetailsModal = ({ open, onClose, product }) => {
     const [shopDetails, setShopDetails] = useState(null);
@@ -13,7 +14,7 @@ const ProductDetailsModal = ({ open, onClose, product }) => {
             const fetchShopDetails = async () => {
                 setLoading(true);
                 try {
-                    const response = await axios.post('http://localhost:3001/shop', { shopID: product.shop });
+                    const response = await axios.post(`${API_URL}/shop`, { shopID: product.shop });
                     setShopDetails(response.data);
                 } catch (err) {
                     setError(err.response?.data?.error || 'Failed to fetch shop details');
@@ -50,7 +51,7 @@ const ProductDetailsModal = ({ open, onClose, product }) => {
                             key={index}
                             component="img"
                             height="140"
-                            image={`http://localhost:3001/uploads/${image}`}
+                            image={`${API_URL}/uploads/${image}`}
                             alt={product.productName}
                             sx={{ marginBottom: 2 }}
                         />

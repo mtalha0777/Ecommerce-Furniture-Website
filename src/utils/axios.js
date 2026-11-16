@@ -1,8 +1,9 @@
 import axios from 'axios';
 import { isTokenExpired, clearAuthData } from './auth';
+import { API_URL } from '../config';
 
 const instance = axios.create({
-  baseURL: 'http://localhost:3001'
+  baseURL: `${API_URL}`
 });
 
 // Add a request interceptor

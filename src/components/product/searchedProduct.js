@@ -24,6 +24,7 @@ import {
   CheckCircle,
 } from '@mui/icons-material';
 import axios from 'axios';
+import { API_URL } from '../../config';
 
 const SearchResults = () => {
   const location = useLocation();
@@ -43,18 +44,18 @@ const SearchResults = () => {
     const userID = localStorage.getItem('userID');
 
     try {
-      const shopResponse = await axios.post(`http://localhost:3001/shop`, {
+      const shopResponse = await axios.post(`${API_URL}/shop`, {
         shopID: product.shopID,
       });
       setShopDetails(shopResponse.data.shop);
 
-      const favoriteResponse = await axios.post(`http://localhost:3001/checkFavorite`, {
+      const favoriteResponse = await axios.post(`${API_URL}/checkFavorite`, {
         userID,
         productID: product._id,
       });
 
       setIsFavorite(favoriteResponse.data.isFavorite);
-      const cartResponse = await axios.post(`http://localhost:3001/checkInCart`, {
+      const cartResponse = await axios.post(`${API_URL}/checkInCart`, {
         userID,
         productID: product._id,
       });
@@ -97,7 +98,7 @@ const SearchResults = () => {
     }
 
     try {
-      const response = await axios.post('http://localhost:3001/favorite', {
+      const response = await axios.post(`${API_URL}/favorite`, {
         userID,
         productID,
         productName: selectedProduct?.productName,
@@ -125,7 +126,7 @@ const SearchResults = () => {
     }
 
     try {
-      const response = await axios.post('http://localhost:3001/addToCart', {
+      const response = await axios.post(`${API_URL}/addToCart`, {
         userID,
         productID,
         // Send all other necessary data from the modal
@@ -191,7 +192,7 @@ const SearchResults = () => {
                   component="img"
                   height="200"
                   image={product.images && product.images.length > 0 
-                    ? `http://localhost:3001/uploads/${product.images[0]}`
+                    ? `${API_URL}/uploads/${product.images[0]}`
                     : '/path/to/default-image.jpg'
                   }
                   alt={product.productName}
@@ -333,7 +334,7 @@ const SearchResults = () => {
                   <ArrowBackIos />
                 </IconButton>
                 <img
-                  src={`http://localhost:3001/uploads/${selectedProduct.images[currentImageIndex]}`}
+                  src={`${API_URL}/uploads/${selectedProduct.images[currentImageIndex]}`}
                   alt={selectedProduct.productName}
                   style={{
                     height: "100%",

@@ -4,6 +4,7 @@ import './bed.css';
 import SearchComponent from '../../components/SearchComponent';
 import ShowCourseComponent from '../../components/ShowCourseComponent';
 import { Link } from 'react-router-dom';
+import { API_URL } from '../../config';
 
 function Bed() {
     const [beds, setBeds] = useState([]);
@@ -14,7 +15,7 @@ function Bed() {
     const [cartBeds, setCartBeds] = useState([]);
 
     useEffect(() => {
-        fetch('http://localhost:3001/beds')
+        fetch(`${API_URL}/beds`)
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`Network response was not ok: ${response.statusText}`);
@@ -42,7 +43,7 @@ function Bed() {
 
     const handleAddNewBed = (event) => {
         event.preventDefault();
-        fetch('http://localhost:3001/beds', {
+        fetch(`${API_URL}/beds`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -65,7 +66,7 @@ function Bed() {
     };
 
     const deleteBedByName = (name) => {
-        fetch(`http://localhost:3001/beds/${encodeURIComponent(name)}`, {
+        fetch(`${API_URL}/beds/${encodeURIComponent(name)}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${sessionStorage.getItem('authToken')}` },
         })

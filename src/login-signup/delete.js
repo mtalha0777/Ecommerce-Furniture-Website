@@ -4,13 +4,14 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import { Link} from 'react-router-dom';
 import images1 from './images1.jpeg';
 import signup from './signup.jpeg';
+import { API_URL } from '../config';
 
 function Del() {
     const [email, setEmail] = useState('');
 
     const handleDelete = (e) => {
         e.preventDefault();
-        axios.delete(`http://localhost:3001/logins/${encodeURIComponent(email)}`, {
+        axios.delete(`${API_URL}/logins/${encodeURIComponent(email)}`, {
             headers: { Authorization: `Bearer ${sessionStorage.getItem('authToken')}` }
         })
             .then(response => {

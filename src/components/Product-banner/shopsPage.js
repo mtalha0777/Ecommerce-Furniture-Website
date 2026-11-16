@@ -5,6 +5,7 @@ import { Typography, Container, Box, CircularProgress, Divider } from "@mui/mate
 import ShopDetails from './ShopDetails';
 import ShopsProductList from './ShopsProductList';
 import ProductModal from './ProductModal';
+import { API_URL } from '../../config';
 
 const ShopsPage = () => {
   const [products, setProducts] = useState([]);
@@ -31,7 +32,7 @@ const ShopsPage = () => {
       setLoading(true);
       try {
         const response = await axios.post(
-          `http://localhost:3001/productsByShop`,
+          `${API_URL}/productsByShop`,
           {
             shopID: shop._id,
           }
@@ -67,7 +68,7 @@ const ShopsPage = () => {
 
   const deleteProduct = async () => {
     try {
-      const response = await axios.delete('http://localhost:3001/deleteProduct', {
+      const response = await axios.delete(`${API_URL}/deleteProduct`, {
         data: { id: selectedProduct._id },
         headers: {
           'Authorization': `Bearer ${authToken}`
@@ -127,7 +128,7 @@ const ShopsPage = () => {
       formData.append('street', editedShop.street);
       formData.append('city', editedShop.city);
       formData.append('productCategories', editedShop.productCategories);
-      const response = await axios.put('http://localhost:3001/updateShop', formData, {
+      const response = await axios.put(`${API_URL}/updateShop`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           'Authorization': `Bearer ${authToken}`
@@ -157,7 +158,7 @@ const ShopsPage = () => {
       formData.append('city', editedShop.city);
       formData.append('productCategories', editedShop.productCategories);
 
-      const response = await axios.put('http://localhost:3001/updateShop', formData, {
+      const response = await axios.put(`${API_URL}/updateShop`, formData, {
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
@@ -202,7 +203,7 @@ const ShopsPage = () => {
     try {
       setIsUploading(true);
       const response = await axios.put(
-        'http://localhost:3001/updateProduct',
+        `${API_URL}/updateProduct`,
         formData,
         {
           headers: {
@@ -234,7 +235,7 @@ const ShopsPage = () => {
     try {
       setIsUploading(true);
       const response = await axios.put(
-        'http://localhost:3001/updateProduct',
+        `${API_URL}/updateProduct`,
         editedProduct,
         {
           headers: {

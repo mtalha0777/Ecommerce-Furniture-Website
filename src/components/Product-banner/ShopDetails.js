@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Typography, Avatar, IconButton, TextField, Button, Chip } from '@mui/material';
 import { AddAPhoto, Edit } from '@mui/icons-material';
+import { API_URL } from '../../config';
 
 const ShopDetails = ({ shop, isEditing, editedShop, setEditedShop, handleEditClick, handleEditSave, fileInputRef, handleProfilePictureChange, setIsEditing }) => {
   return (
@@ -8,7 +9,7 @@ const ShopDetails = ({ shop, isEditing, editedShop, setEditedShop, handleEditCli
       <Box sx={{ position: 'relative' }}>
         <Avatar
           alt={shop.shopName}
-          src={`http://localhost:3001/${shop.profilePicture}`}
+          src={`${API_URL}/${shop.profilePicture}`}
           sx={{
             width: 80,
             height: 80,

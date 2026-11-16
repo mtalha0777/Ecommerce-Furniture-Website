@@ -9,6 +9,7 @@ import axios from 'axios';
 import Modal from './WishlistModal';
 import { Button } from 'react-bootstrap';
 import { isTokenExpired } from '../../utils/auth';
+import { API_URL } from '../../config';
 
 const Header = () => {
     const [categories] = useState([
@@ -52,7 +53,7 @@ const Header = () => {
         
         const fetchCartItems = async () => {
             try {
-                const response = await fetch(`http://localhost:3001/cart/${userID}`, {
+                const response = await fetch(`${API_URL}/cart/${userID}`, {
                     headers: {
                         'Authorization': `Bearer ${authToken}`
                     }
@@ -72,7 +73,7 @@ const Header = () => {
     useEffect(() => {
         const fetchUserData = async () => {
             try {
-                const authResponse = await axios.get('http://localhost:3001/check-auth');
+                const authResponse = await axios.get(`${API_URL}/check-auth`);
                 setUser(authResponse.data.user);
             } catch (error) {
                 setUser(null);
@@ -89,7 +90,7 @@ const Header = () => {
             try {
                 if (storedUserID) {
                     const favoritesResponse = await axios.get(
-                        `http://localhost:3001/favorites/${storedUserID}`,
+                        `${API_URL}/favorites/${storedUserID}`,
                         {
                             headers: {
                                 'Authorization': `Bearer ${authToken}`
@@ -114,7 +115,7 @@ const Header = () => {
             if (userID) {
                 try {
                     const response = await axios.get(
-                        `http://localhost:3001/user/${userID}`,
+                        `${API_URL}/user/${userID}`,
                         {
                             headers: { 'Authorization': `Bearer ${authToken}` }
                         }
@@ -134,7 +135,7 @@ const Header = () => {
             const userID = localStorage.getItem('userID');
             if (userID) {
                 try {
-                    const response = await axios.post('http://localhost:3001/shop', 
+                    const response = await axios.post(`${API_URL}/shop`, 
                         { userID },
                         {
                             headers: {
@@ -179,7 +180,7 @@ const Header = () => {
                 break;
             case 'Log Out':
                 try {
-                    await axios.post('http://localhost:3001/logout');
+                    await axios.post(`${API_URL}/logout`);
                 } catch (error) {
                     console.error('Error logging out:', error);
                 } finally {
@@ -201,7 +202,7 @@ const Header = () => {
 
     const handleSearch = async () => {
         try {
-            const response = await axios.post('http://localhost:3001/search', {
+            const response = await axios.post(`${API_URL}/search`, {
                 query: searchQuery,
                 category: selectedCategory !== 'All Categories' ? selectedCategory : 'All Categories', // Pass category if not "All Categories"
             });
@@ -318,7 +319,7 @@ const Header = () => {
                             onClick={() => navigate('/profile')}>
                                 <img 
                                     src={favorite.product?.images?.[0] 
-                                        ? `http://localhost:3001/uploads/${favorite.product.images[0]}`
+                                        ? `${API_URL}/uploads/${favorite.product.images[0]}`
                                         : '/placeholder-image.jpg'
                                     }
                                     alt={favorite.product?.productName || favorite.productName}
@@ -445,9 +446,9 @@ const Header = () => {
                                 <img
                                     src={
                                         userRole !== '2' && userData?.profilePicture
-                                            ? `http://localhost:3001/${userData.profilePicture}`
+                                            ? `${API_URL}/${userData.profilePicture}`
                                             : userRole === '2' && shops?.profilePicture
-                                                ? `http://localhost:3001/${shops.profilePicture}`
+                                                ? `${API_URL}/${shops.profilePicture}`
                                                 : 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'
                                     }
                                     className="profile-image"

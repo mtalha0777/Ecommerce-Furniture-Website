@@ -4,6 +4,7 @@ import EmailIcon from '@mui/icons-material/Email';
 import PersonIcon from '@mui/icons-material/Person';
 import PhoneIcon from '@mui/icons-material/Phone';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import { API_URL } from '../../config';
 
 function UserCard({ user, onMenuClick }) {
     return (
@@ -42,7 +43,7 @@ function UserCard({ user, onMenuClick }) {
                 }}>
                     <Avatar
                         src={user.profilePicture
-                            ? `http://localhost:3001/${user.profilePicture}`
+                            ? `${API_URL}/${user.profilePicture}`
                             : 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'
                         }
                         sx={{

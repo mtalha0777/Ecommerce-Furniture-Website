@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, Backdrop, Fade, Box, Typography, IconButton, Button, TextField, CardMedia } from '@mui/material';
 import { ArrowBackIos, ArrowForwardIos, AddAPhoto, Delete } from '@mui/icons-material';
+import { API_URL } from '../../config';
 
 const ProductModal = ({ openModal, handleCloseModal, selectedProduct, currentImageIndex, handlePrevImage, handleNextImage, handleEditProduct, deleteProduct, isEditingProduct, editedProduct, setEditedProduct, handleDeleteImage, productFileInputRef, handleProductImageUpload, handleSaveProduct, setIsEditingProduct }) => {
   return (
@@ -75,7 +76,7 @@ const ProductModal = ({ openModal, handleCloseModal, selectedProduct, currentIma
                 border: "1px solid #FFB300",
                 borderRadius: "8px",
               }}
-              image={`http://localhost:3001/uploads/${selectedProduct.images[currentImageIndex]}`}
+              image={`${API_URL}/uploads/${selectedProduct.images[currentImageIndex]}`}
               alt={`Product Image ${currentImageIndex + 1}`}
             />
             <IconButton
@@ -164,7 +165,7 @@ const ProductModal = ({ openModal, handleCloseModal, selectedProduct, currentIma
                 {editedProduct.images.map((image, index) => (
                   <Box key={index} sx={{ position: 'relative' }}>
                     <img
-                      src={`http://localhost:3001/uploads/${image}`}
+                      src={`${API_URL}/uploads/${image}`}
                       alt={`Product ${index + 1}`}
                       style={{ width: 100, height: 100, objectFit: 'cover' }}
                     />

@@ -8,6 +8,7 @@ import Sidebar from './Sidebar';
 import UserManagement from './UserManagement';
 import OrderManagement from './OrderManagement';
 import ShopManagement from './ShopManagement';
+import { API_URL } from '../../config';
 
 function AdminDashboard() {
     const [selectedTab, setSelectedTab] = useState('Manage Users');
@@ -71,7 +72,7 @@ function AdminDashboard() {
     const fetchUsers = async (pageNum, isNewSearch = false) => {
         try {
             setLoading(true);
-            const response = await axios.get(`http://localhost:3001/users?page=${pageNum}&limit=${USERS_PER_PAGE}`, {
+            const response = await axios.get(`${API_URL}/users?page=${pageNum}&limit=${USERS_PER_PAGE}`, {
                 headers: { 'Authorization': `Bearer ${authToken}` }
             });
             
@@ -93,7 +94,7 @@ function AdminDashboard() {
 
     const fetchOrders = async () => {
         try {
-            const response = await axios.get('http://localhost:3001/orders', {
+            const response = await axios.get(`${API_URL}/orders`, {
                 headers: { 'Authorization': `Bearer ${authToken}` }
             });
             setOrders(response.data);
@@ -104,7 +105,7 @@ function AdminDashboard() {
 
     const fetchShops = async () => {
         try {
-            const response = await axios.get('http://localhost:3001/shops', {
+            const response = await axios.get(`${API_URL}/shops`, {
                 headers: { 'Authorization': `Bearer ${authToken}` }
             });
             setShops(response.data);
@@ -141,7 +142,7 @@ function AdminDashboard() {
     const handleStatusChange = async (newStatus) => {
         try {
             await axios.put(
-                `http://localhost:3001/orders/${selectedOrder._id}/status`,
+                `${API_URL}/orders/${selectedOrder._id}/status`,
                 { status: newStatus },
                 { headers: { 'Authorization': `Bearer ${authToken}` } }
             );
@@ -154,7 +155,7 @@ function AdminDashboard() {
 
     const handleMakeAdmin = async () => {
         try {
-            await axios.put(`http://localhost:3001/users/${selectedUser._id}/role`, 
+            await axios.put(`${API_URL}/users/${selectedUser._id}/role`, 
                 { role: '3' },
                 { headers: { 'Authorization': `Bearer ${authToken}` } }
             );
@@ -167,7 +168,7 @@ function AdminDashboard() {
 
     const handleRemoveUser = async () => {
         try {
-            await axios.delete(`http://localhost:3001/users/${selectedUser._id}`,
+            await axios.delete(`${API_URL}/users/${selectedUser._id}`,
                 { headers: { 'Authorization': `Bearer ${authToken}` } }
             );
             fetchUsers(); // Refresh user list

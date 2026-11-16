@@ -3,6 +3,7 @@ import './bed.css';  // Assuming you have a separate CSS file for tables
 import ShowCourseComponent from '../../components/ShowCourseComponent';  // Component to display tables
 import SearchComponent from '../../components/SearchComponent';
 import { Link } from 'react-router-dom';
+import { API_URL } from '../../config';
 
 function Table() {
     const [tables, setTables] = useState([]);
@@ -12,7 +13,7 @@ function Table() {
     const [newTable, setNewTable] = useState({ name: '', price: '', imageUrl: '', description: '' });
 
     useEffect(() => {
-        fetch('http://localhost:3001/tables')
+        fetch(`${API_URL}/tables`)
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`Network response was not ok: ${response.statusText}`);
@@ -48,7 +49,7 @@ function Table() {
     };
 
     const deleteTableByName = (name) => {
-        fetch(`http://localhost:3001/tables/${encodeURIComponent(name)}`, {
+        fetch(`${API_URL}/tables/${encodeURIComponent(name)}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${sessionStorage.getItem('authToken')}` },
         })
@@ -73,7 +74,7 @@ function Table() {
 
     const handleAddNewTable = (event) => {
         event.preventDefault();
-        fetch('http://localhost:3001/tables', {
+        fetch(`${API_URL}/tables`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

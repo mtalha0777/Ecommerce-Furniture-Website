@@ -1,5 +1,6 @@
 import React from 'react';
 import { Grid, Typography, Card, CardActionArea, CardMedia, CardContent } from '@mui/material';
+import { API_URL } from '../../config';
 
 const ShopsProductList = ({ products, handleCardClick }) => {
   return (
@@ -45,7 +46,7 @@ const ShopsProductList = ({ products, handleCardClick }) => {
                     objectFit: "cover",
                     width: "100%",
                   }}
-                  image={`http://localhost:3001/uploads/${product.images[0]}`}
+                  image={`${API_URL}/uploads/${product.images[0]}`}
                   alt={product.productName}
                 />
                 <CardContent sx={{ flexGrow: 1, minHeight: 0, textAlign: 'left' }}>
