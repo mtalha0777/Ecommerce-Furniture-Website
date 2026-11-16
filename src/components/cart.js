@@ -6,7 +6,6 @@ import { Elements, CardElement, useStripe, useElements } from '@stripe/react-str
 
 // Initialize Stripe with your publishable key
 const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY);
-console.log('pkey',process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY);
 
 // Create a new CheckoutForm component
 function CheckoutForm({ totalAmount, handleSubmit }) {
@@ -254,7 +253,7 @@ function Cart() {
                     }
                 });
                 const data = await response.json();
-                setCartItems(data.products); // Assuming 'products' contains the array of cart items
+                setCartItems(data.products || []); // A user with no cart yet gets an empty list
             } catch (error) {
                 console.error("Error fetching cart items:", error);
             }
@@ -302,7 +301,6 @@ function Cart() {
         const userID = localStorage.getItem('userID');
         const orderDetails = {
             ...formDetails,
-            paymentMethod: 'card',
             products: cartItems?.map(item => ({
                 name: item.productName,
                 price: item.price,

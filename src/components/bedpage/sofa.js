@@ -42,10 +42,18 @@ function Sofa() {
         event.preventDefault();
         fetch('http://localhost:3001/sofas', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
+            },
             body: JSON.stringify(newSofa)
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Request failed with status ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             setSofas([...sofas, data]);
             setNewSofa({ name: '', price: '', imageUrl: '', description: '' });
@@ -54,8 +62,9 @@ function Sofa() {
     };
 
     const deleteSofaByName = (name) => {
-        fetch(`http://localhost:3001/sofas/${name}`, {
+        fetch(`http://localhost:3001/sofas/${encodeURIComponent(name)}`, {
             method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${sessionStorage.getItem('authToken')}` },
         })
         .then(response => response.json())
         .then(data => {

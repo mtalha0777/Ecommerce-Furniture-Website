@@ -44,10 +44,18 @@ function Bed() {
         event.preventDefault();
         fetch('http://localhost:3001/beds', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
+            },
             body: JSON.stringify(newBed)
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Request failed with status ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             console.log("New bed added: ", data);
             setBeds([...beds, data]);
@@ -57,8 +65,9 @@ function Bed() {
     };
 
     const deleteBedByName = (name) => {
-        fetch(`http://localhost:3001/beds/${name}`, {
+        fetch(`http://localhost:3001/beds/${encodeURIComponent(name)}`, {
             method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${sessionStorage.getItem('authToken')}` },
         })
         .then(response => response.json())
         .then(data => {

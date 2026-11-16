@@ -48,8 +48,9 @@ function Table() {
     };
 
     const deleteTableByName = (name) => {
-        fetch(`http://localhost:3001/tables/${name}`, {
+        fetch(`http://localhost:3001/tables/${encodeURIComponent(name)}`, {
             method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${sessionStorage.getItem('authToken')}` },
         })
         .then(response => response.json())
         .then(data => {
@@ -74,10 +75,18 @@ function Table() {
         event.preventDefault();
         fetch('http://localhost:3001/tables', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
+            },
             body: JSON.stringify(newTable)
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Request failed with status ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             setTables([...tables, data]);
             setNewTable({ name: '', price: '', imageUrl: '', description: '' });

@@ -180,10 +180,16 @@ const Header = () => {
             case 'Log Out':
                 try {
                     await axios.post('http://localhost:3001/logout');
-                    setUser(null);
-                    navigate('/');
                 } catch (error) {
                     console.error('Error logging out:', error);
+                } finally {
+                    // Always end the session locally, even if the server is unreachable.
+                    sessionStorage.clear();
+                    localStorage.removeItem('userID');
+                    localStorage.removeItem('userRole');
+                    localStorage.removeItem('shopID');
+                    setUser(null);
+                    navigate('/', { replace: true });
                 }
                 break;
             case 'My Account':
@@ -454,7 +460,7 @@ const Header = () => {
                             {dropdownOpen && (
                                 <div className="dropdown-menu" style={{ display: 'block', marginRight:'2%', cursor:'pointer' }} ref={dropdownRef}>
                                     <span className="dropdown-item" onClick={handleShopClick}>{shops?.shopName? shops.shopName : 'My Profile'}</span>
-                                    <button onClick={() => { navigate('/') }} className="dropdown-item">Logout</button>
+                                    <button onClick={() => handleAccountSelect('Log Out')} className="dropdown-item">Logout</button>
                                 </div>
                             )}
                         </div>

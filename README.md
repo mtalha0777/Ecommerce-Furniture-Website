@@ -1,3 +1,25 @@
+# Ecommerce Furniture Website
+
+React (Create React App) frontend with an Express and MongoDB API in `server/`.
+
+## Setup
+
+1. Install dependencies: `npm install` in the project root, then `npm install` in `server/`.
+2. Copy `server/.env.example` to `server/.env` and fill in `MONGO_URI`, `JWT_SECRET` and `STRIPE_SECRET_KEY`. Never commit `server/.env`.
+3. Add `REACT_APP_STRIPE_PUBLISHABLE_KEY=pk_test_...` to a `.env.local` file in the project root.
+4. Start the API with `npm start` inside `server/` (port 3001), then the frontend with `npm start` in the root (port 3000).
+
+## Tests
+
+- API: `npm test` inside `server/` (Jest and Supertest, no database needed).
+- Frontend: `npm test` in the project root.
+
+## Roles
+
+`1` customer, `2` seller, `3` admin. Sign-up can create customers and sellers only. Admins are promoted by an existing admin or directly in the database.
+
+---
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).

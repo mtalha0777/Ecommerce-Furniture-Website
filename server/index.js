@@ -4,9 +4,17 @@ const cors = require("cors");
 const multer = require('multer');
 const path = require('path');
 const jwt = require("jsonwebtoken");
-require('dotenv').config();
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-console.log('Stripe initialized:', !!stripe);
+const bcrypt = require("bcryptjs");
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
+// Secrets come from the environment only (see .env.example). Never hard-code them.
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET is not set. Copy server/.env.example to server/.env and fill it in.');
+}
+const stripe = process.env.STRIPE_SECRET_KEY
+    ? require('stripe')(process.env.STRIPE_SECRET_KEY)
+    : null;
 // Models
 const eappmodel = require('./model/user');
 const Bed = require('./model/bed');
@@ -22,91 +30,125 @@ const fs = require('fs');
 const app = express();
 app.use(express.json());
 app.use(cors({
-    origin: 'http://localhost:3000',
+    origin: process.env.CLIENT_ORIGIN || 'http://localhost:3000',
     credentials: true
 }));
 
-const secret = require('crypto').randomBytes(64).toString('hex');
-process.env.SECRET_KEY = secret;
-const JWT_SECRET = process.env.JWT_SECRET;
-// MongoDB connection
-const mongoUri = "mongodb+srv://farhanalibhatti785:12345@cluster0.mwimt.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-mongoose.connect(mongoUri, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log("Connected to MongoDB"))
-    .catch(err => console.error("MongoDB connection error:", err));
+const ROLE_USER = '1';
+const ROLE_SELLER = '2';
+const ROLE_ADMIN = '3';
+const BCRYPT_ROUNDS = 10;
+const BCRYPT_HASH = /^\$2[aby]\$\d{2}\$/;
 
-const db = mongoose.connection;
-db.on('error', console.error.bind(console, 'MongoDB connection error:'));
-db.once('open', () => {
-    console.log("Connected to MongoDB");
-});
-
+const isNonEmptyString = (value) => typeof value === 'string' && value.trim().length > 0;
+const isValidId = (value) => typeof value === 'string' && mongoose.Types.ObjectId.isValid(value);
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const isAdmin = (req) => String(req.user.role) === ROLE_ADMIN;
+const withoutPassword = (user) => {
+    const plain = typeof user.toObject === 'function' ? user.toObject() : { ...user };
+    delete plain.password;
+    return plain;
+};
 function authenticateToken(req, res, next) {
+    const [scheme, token] = (req.headers['authorization'] || '').split(' ');
+    if (scheme !== 'Bearer' || !token) {
+        return res.status(401).json({
+            error: 'Authentication failed',
+            message: 'No token provided'
+        });
+    }
+
     try {
-        const token = req.headers['authorization'].split(' ')[1];
-        if (!token) {
-            return res.status(401).json({ 
-                error: 'Authentication failed', 
-                message: 'No token provided' 
+        req.user = jwt.verify(token, JWT_SECRET);
+        return next();
+    } catch (err) {
+        if (err.name === 'TokenExpiredError') {
+            return res.status(401).json({
+                error: 'Authentication failed',
+                message: 'Token has expired'
             });
         }
-
-        jwt.verify(token, JWT_SECRET, (err, user) => {
-            if (err) {
-                console.log('Token Verification Error:', err);
-                if (err.name === 'TokenExpiredError') {
-                    return res.status(401).json({
-                        error: 'Authentication failed',
-                        message: 'Token has expired'
-                    });
-                }
-                return res.status(403).json({
-                    error: 'Authentication failed',
-                    message: 'Invalid token'
-                });
-            }
-            
-            console.log('Decoded User Data:', user);
-            req.user = user;
-            next();
-        });
-    } catch (error) {
-        console.error('Authentication error:', error);
-        return res.status(500).json({
+        return res.status(403).json({
             error: 'Authentication failed',
-            message: 'Internal server error during authentication'
+            message: 'Invalid token'
         });
     }
 }
 
-// User Authentication Routes
-app.post("/login", (req, res) => {
-    const { email, password } = req.body;
-    eappmodel.findOne({ email })
-        .then(user => {
-            if (!user) return res.status(404).json("Email is incorrect");
+// Only admins (role 3) may use the admin dashboard endpoints.
+function requireAdmin(req, res, next) {
+    if (!isAdmin(req)) {
+        return res.status(403).json({ message: 'Admin access required' });
+    }
+    next();
+}
 
-            if (user.password === password) {
-                const token = jwt.sign(
-                    { id: user.id, role: user.role },
-                    JWT_SECRET,
-                    { expiresIn: "1h" } // Token expires in 1 hour
-                );
-                res.json({
-                    message: "Success",
-                    role: user.role,
-                    loginStatus: user.firstLogin,
-                    userID: user.id,
-                    token // Send token to client
-                });
-            } else {
-                res.status(400).json("Password is incorrect");
+// The userID in the URL or body must be the logged-in user (admins are exempt).
+// When no userID is sent, the handlers fall back to the ID inside the token.
+function requireSelf(req, res, next) {
+    const requested = req.params.userID ?? (req.body && req.body.userID);
+    if (requested !== undefined && String(requested) !== String(req.user.id) && !isAdmin(req)) {
+        return res.status(403).json({ message: 'You can only access your own data' });
+    }
+    next();
+}
+
+// A shop may be changed only by its owner or an admin.
+async function canManageShop(req, shopID) {
+    if (!isValidId(shopID)) return { status: 400, message: 'A valid shop ID is required' };
+    const shop = await Shop.findById(shopID);
+    if (!shop) return { status: 404, message: 'Shop not found' };
+    if (String(shop.userID) !== String(req.user.id) && !isAdmin(req)) {
+        return { status: 403, message: 'You can only manage your own shop' };
+    }
+    return { shop };
+}
+
+// User Authentication Routes
+app.post("/login", async (req, res) => {
+    const { email, password } = req.body || {};
+    // Strings only: objects such as { "$gt": "" } would otherwise reach the query.
+    if (!isNonEmptyString(email) || !isNonEmptyString(password)) {
+        return res.status(400).json("Email and password are required");
+    }
+
+    try {
+        const user = await eappmodel.findOne({ email: email.trim() });
+        if (!user || typeof user.password !== 'string') {
+            return res.status(401).json("Invalid email or password");
+        }
+
+        let passwordMatches;
+        if (BCRYPT_HASH.test(user.password)) {
+            passwordMatches = await bcrypt.compare(password, user.password);
+        } else {
+            // Legacy account stored in plain text: verify once, then upgrade to a hash.
+            passwordMatches = user.password === password;
+            if (passwordMatches) {
+                user.password = await bcrypt.hash(password, BCRYPT_ROUNDS);
+                await user.save();
             }
-        })
-        .catch(err => {
-            console.error("Error during login:", err);
-            res.status(500).json("An error occurred during login");
+        }
+        if (!passwordMatches) {
+            return res.status(401).json("Invalid email or password");
+        }
+
+        const token = jwt.sign(
+            { id: user.id, role: user.role },
+            JWT_SECRET,
+            { expiresIn: "1h" } // Token expires in 1 hour
+        );
+        res.json({
+            message: "Success",
+            role: user.role,
+            loginStatus: user.firstLogin,
+            userID: user.id,
+            token // Send token to client
         });
+    } catch (err) {
+        console.error("Error during login:", err);
+        res.status(500).json("An error occurred during login");
+    }
 });
 
 app.get('/check-auth', (req, res) => {
@@ -114,15 +156,59 @@ app.get('/check-auth', (req, res) => {
     res.json({ message: 'Auth check endpoint' });
 });
 
-app.post("/register", (req, res) => {
-    req.body.firstLogin = true;
-    eappmodel.create(req.body)
-        .then(eapp => res.status(201).json(eapp))
-        .catch(err => res.status(500).json(err));
+// Stateless JWT: the client discards its token. Kept so the header's logout call succeeds.
+app.post('/logout', (req, res) => {
+    res.json({ message: 'Logged out' });
 });
 
-app.delete('/logins/:email', (req, res) => {
+app.post("/register", async (req, res) => {
+    const { name, email, password, role, phoneNumber } = req.body || {};
+
+    if (!isNonEmptyString(name) || !isNonEmptyString(email) || typeof password !== 'string') {
+        return res.status(400).json({ message: 'Name, email and password are required' });
+    }
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+        return res.status(400).json({ message: 'Email address is invalid' });
+    }
+    if (password.length < 8) {
+        return res.status(400).json({ message: 'Password must be at least 8 characters' });
+    }
+    // Self-registration can create a customer or a seller, never an admin.
+    const safeRole = String(role) === ROLE_SELLER ? ROLE_SELLER : ROLE_USER;
+
+    try {
+        const existing = await eappmodel.findOne({ email: email.trim() });
+        if (existing) {
+            return res.status(409).json({ message: 'An account with this email already exists' });
+        }
+
+        const user = await eappmodel.create({
+            name: name.trim(),
+            email: email.trim(),
+            password: await bcrypt.hash(password, BCRYPT_ROUNDS),
+            phoneNumber: isNonEmptyString(phoneNumber) ? phoneNumber.trim() : undefined,
+            role: safeRole,
+            firstLogin: true
+        });
+        res.status(201).json(withoutPassword(user));
+    } catch (err) {
+        console.error('Error during registration:', err);
+        res.status(500).json({ message: 'An error occurred during registration' });
+    }
+});
+
+app.delete('/logins/:email', authenticateToken, async (req, res) => {
     const email = req.params.email;
+    try {
+        // Only the account owner or an admin may delete an account.
+        const self = await eappmodel.findById(req.user.id);
+        if (!isAdmin(req) && (!self || self.email !== email)) {
+            return res.status(403).json({ message: 'You can only delete your own account' });
+        }
+    } catch (err) {
+        console.error("Error deleting user:", err);
+        return res.status(500).json({ message: 'An error occurred while deleting the user' });
+    }
     eappmodel.deleteOne({ email: email })
         .then(result => {
             if (result.deletedCount === 1) {
@@ -147,7 +233,7 @@ app.get('/beds', (req, res) => {
         });
 });
 
-app.post('/beds', (req, res) => {
+app.post('/beds', authenticateToken, (req, res) => {
     const { name, price, imageUrl, description } = req.body;
     Bed.create({ name, price, imageUrl, description })
         .then(bed => res.status(201).json(bed))
@@ -157,12 +243,12 @@ app.post('/beds', (req, res) => {
         });
 });
 
-app.delete('/beds/:name', (req, res) => {
+app.delete('/beds/:name', authenticateToken, (req, res) => {
     const name = req.params.name;
     Bed.deleteOne({ name: name })
         .then(result => {
             if (result.deletedCount === 1) {
-                res.json({ message: 'Bed deleted successfully' });
+                res.json({ success: true, message: 'Bed deleted successfully' });
             } else {
                 res.status(404).json({ message: 'Bed not found' });
             }
@@ -183,7 +269,7 @@ app.get('/sofas', (req, res) => {
         });
 });
 
-app.post('/sofas', (req, res) => {
+app.post('/sofas', authenticateToken, (req, res) => {
     const { name, price, imageUrl, description } = req.body;
     Sofa.create({ name, price, imageUrl, description })
         .then(sofa => res.status(201).json(sofa))
@@ -193,12 +279,12 @@ app.post('/sofas', (req, res) => {
         });
 });
 
-app.delete('/sofas/:name', (req, res) => {
+app.delete('/sofas/:name', authenticateToken, (req, res) => {
     const name = req.params.name;
     Sofa.deleteOne({ name: name })
         .then(result => {
             if (result.deletedCount === 1) {
-                res.json({ message: 'Sofa deleted successfully' });
+                res.json({ success: true, message: 'Sofa deleted successfully' });
             } else {
                 res.status(404).json({ message: 'Sofa not found' });
             }
@@ -219,7 +305,7 @@ app.get('/tables', (req, res) => {
         });
 });
 
-app.post('/tables', (req, res) => {
+app.post('/tables', authenticateToken, (req, res) => {
     const { name, price, imageUrl, description } = req.body;
     Table.create({ name, price, imageUrl, description })
         .then(table => res.status(201).json(table))
@@ -229,12 +315,12 @@ app.post('/tables', (req, res) => {
         });
 });
 
-app.delete('/tables/:name', (req, res) => {
+app.delete('/tables/:name', authenticateToken, (req, res) => {
     const name = req.params.name;
     Table.deleteOne({ name: name })
         .then(result => {
             if (result.deletedCount === 1) {
-                res.json({ message: 'Table deleted successfully' });
+                res.json({ success: true, message: 'Table deleted successfully' });
             } else {
                 res.status(404).json({ message: 'Table not found' });
             }
@@ -247,23 +333,22 @@ app.delete('/tables/:name', (req, res) => {
 
 // Search Route
 app.post('/search', async (req, res) => {
-    const { query, category } = req.body;
+    const { query, category } = req.body || {};
+    const hasCategory = isNonEmptyString(category) && category !== "All Categories";
+
     try {
-        if(category === "All Categories"){
-
-            let products = await Product.find({ productName: { $regex: query, $options: 'i' } });
-
-            if (products.length === 0) {
-                products = await Product.find({ category: { $regex: query, $options: 'i' } });
-            }
-
-            res.json(products);
+        if (hasCategory) {
+            const products = await Product.find({ category: { $regex: escapeRegex(category), $options: 'i' } });
+            return res.json(products);
         }
-        else if(category){
 
-            let products = await Product.find({ category: { $regex: category, $options: 'i' } });
-            res.json(products);
+        // User input is escaped so "(" or "*" cannot break or abuse the regex.
+        const term = typeof query === 'string' ? escapeRegex(query.trim()) : '';
+        let products = await Product.find({ productName: { $regex: term, $options: 'i' } });
+        if (products.length === 0) {
+            products = await Product.find({ category: { $regex: term, $options: 'i' } });
         }
+        res.json(products);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -274,35 +359,59 @@ app.post('/search', async (req, res) => {
 
 // Order Routes
 app.post('/orders', authenticateToken, async (req, res) => {
-    const orderDetails = req.body;
+    // Payment and fulfilment state is decided by the server, never by the client.
+    const { paymentStatus, paymentDate, status, userID, ...orderDetails } = req.body || {};
 
     try {
-        // Create the order in the database
-        const newOrder = new Order({
-            ...orderDetails,
-            paymentStatus: 'paid', // Add payment status
-            paymentDate: new Date()
-        });
+        let payment = { paymentStatus: 'pending' };
+
+        if (orderDetails.paymentIntentID) {
+            if (!stripe) {
+                return res.status(503).json({ message: 'Card payments are not configured.' });
+            }
+            if (typeof orderDetails.paymentIntentID !== 'string') {
+                return res.status(400).json({ message: 'Invalid payment reference.' });
+            }
+            const alreadyUsed = await Order.findOne({ paymentIntentID: orderDetails.paymentIntentID });
+            if (alreadyUsed) {
+                return res.status(409).json({ message: 'This payment has already been used for an order.' });
+            }
+            let intent;
+            try {
+                intent = await stripe.paymentIntents.retrieve(orderDetails.paymentIntentID);
+            } catch (stripeError) {
+                return res.status(402).json({ message: 'Payment could not be verified.' });
+            }
+            if (!intent || intent.status !== 'succeeded') {
+                return res.status(402).json({ message: 'Payment has not been completed.' });
+            }
+            payment = { paymentStatus: 'paid', paymentDate: new Date() };
+        }
+
+        const newOrder = new Order({ ...orderDetails, ...payment });
         await newOrder.save();
 
-        // Clear the user's cart
-        await Cart.deleteMany({ userID: orderDetails.userID });
+        // Clear only the cart of the logged-in user (ID from the token, not the body).
+        await Cart.deleteMany({ userID: String(req.user.id) });
 
         res.status(201).json({ 
             message: 'Order placed successfully.',
             order: newOrder
         });
     } catch (error) {
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({ message: error.message });
+        }
         console.error('Error placing order:', error);
         res.status(500).json({ message: 'Server error. Please try again later.' });
     }
 });
 
-app.delete('/clearcart', authenticateToken, async (req, res) => {
-    const { userID } = req.body;
+app.delete('/clearcart', authenticateToken, requireSelf, async (req, res) => {
     try {
-        await Cart.deleteMany({ userID });
-        res.status(201).json({ message: 'Cart cleared successfully.' });
+        // Always scoped to the token's user: an empty filter would wipe every cart.
+        await Cart.deleteMany({ userID: String(req.user.id) });
+        res.status(200).json({ message: 'Cart cleared successfully.' });
     } catch (error) {
         console.error('Error:', error);
         res.status(500).json({ message: 'Server error. Please try again later.' });
@@ -311,7 +420,7 @@ app.delete('/clearcart', authenticateToken, async (req, res) => {
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const storage = multer.diskStorage({
-    destination: './uploads/',
+    destination: path.join(__dirname, 'uploads'),
     filename: (req, file, cb) => {
         cb(null, `${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`);
     }
@@ -342,8 +451,16 @@ app.post('/createshop', authenticateToken, (req, res) => {
         }
 
         try {
-            const { shopName, street, city, productCategories, userID } = req.body;
-            const profilePicture = req.file ? req.file.path : null;
+            const { shopName, street, city, productCategories } = req.body;
+            // The shop always belongs to the logged-in user.
+            const userID = String(req.user.id);
+            if (req.body.userID && String(req.body.userID) !== userID && !isAdmin(req)) {
+                return res.status(403).json({ error: 'You can only create a shop for your own account' });
+            }
+            if (![shopName, street, city, productCategories].every(isNonEmptyString)) {
+                return res.status(400).json({ error: 'Shop name, street, city and product categories are required' });
+            }
+            const profilePicture = req.file ? path.join('uploads', req.file.filename) : null;
 
             // Ensure userID is saved with the shop data
             const shop = await Shop.create({ shopName, street, city, productCategories, profilePicture, userID });
@@ -367,11 +484,11 @@ app.post('/createshop', authenticateToken, (req, res) => {
 app.post("/searchedProduct", (req, res) => {
     const { searchTerm } = req.body;
 
-    if (!searchTerm) {
+    if (!isNonEmptyString(searchTerm)) {
         return res.status(400).json({ error: "Search term is required" });
     }
 
-    Product.find({ category: { $regex: searchTerm, $options: "i" } })
+    Product.find({ category: { $regex: escapeRegex(searchTerm), $options: "i" } })
         .then(products => {
             res.status(200).json({ products });
         })
@@ -390,6 +507,9 @@ app.post("/shop", authenticateToken, (req, res) => {
 
     // If shopID is provided, find the shop by shopID
     if (shopID) {
+        if (!isValidId(shopID)) {
+            return res.status(400).json({ error: "Shop ID is invalid" });
+        }
         Shop.findById(shopID)
             .then(shop => {
                 if (!shop) {
@@ -402,7 +522,6 @@ app.post("/shop", authenticateToken, (req, res) => {
                 res.status(500).json({ error: 'Failed to fetch shop', details: err });
             });
     } else if (userID) {
-        console.log('userID coming', userID);
         // If userID is provided, find shops by userID
         Shop.find({ userID: userID })
             .then(shops => {
@@ -437,9 +556,9 @@ const muiltFiles = multer({
 }).array('productImages', 5);
 
 app.post('/createproduct',authenticateToken, (req, res) => {
-    muiltFiles(req, res, (err) => {
+    muiltFiles(req, res, async (err) => {
         if (err) {
-            return res.status(400).json({ error: err });
+            return res.status(400).json({ error: err.message || err });
         }
 
         // Access product details from the form
@@ -448,6 +567,19 @@ app.post('/createproduct',authenticateToken, (req, res) => {
         // Ensure required fields are provided
         if (!productName || !category || !price || !shopID) {
             return res.status(400).json({ error: 'All fields are required.' });
+        }
+
+        if (!Number.isFinite(Number(price)) || Number(price) < 0) {
+            return res.status(400).json({ error: 'Price must be a positive number.' });
+        }
+
+        try {
+            const access = await canManageShop(req, shopID);
+            if (!access.shop) {
+                return res.status(access.status).json({ error: access.message });
+            }
+        } catch (lookupError) {
+            return res.status(500).json({ error: 'Failed to create product' });
         }
 
         // Handle uploaded files
@@ -478,7 +610,7 @@ app.post('/productsByShop', (req, res) => {
     const { shopID } = req.body;
 
     // Check if shopID is provided
-    if (!shopID) {
+    if (!isValidId(shopID)) {
         return res.status(400).json({ error: "Shop ID is required" });
     }
 
@@ -497,7 +629,13 @@ app.post('/productsByShop', (req, res) => {
 });
 app.post('/create-payment-intent', authenticateToken, async (req, res) => {
     try {
-        const { amount } = req.body;
+        const amount = Number(req.body && req.body.amount);
+        if (!Number.isFinite(amount) || amount <= 0) {
+            return res.status(400).json({ error: 'A positive amount is required' });
+        }
+        if (!stripe) {
+            return res.status(503).json({ error: 'Card payments are not configured' });
+        }
         
         // Create a PaymentIntent
         const paymentIntent = await stripe.paymentIntents.create({
@@ -522,9 +660,8 @@ app.post('/create-payment-intent', authenticateToken, async (req, res) => {
     }
 });
 
-app.post('/favorite', authenticateToken, async (req, res) => {
+app.post('/favorite', authenticateToken, requireSelf, async (req, res) => {
     const { userID, productID, productName, category, price, images, shopName, address } = req.body;
-    console.log('already in api')
 
     if (!userID || !productID) {
         return res.status(400).json({ error: 'userID and productID are required' });
@@ -562,7 +699,7 @@ app.post('/favorite', authenticateToken, async (req, res) => {
     }
 });
 
-app.post('/checkFavorite', authenticateToken, async (req, res) => {
+app.post('/checkFavorite', authenticateToken, requireSelf, async (req, res) => {
     const { userID, productID } = req.body;
 
     if (!userID || !productID) {
@@ -587,7 +724,7 @@ app.post('/checkFavorite', authenticateToken, async (req, res) => {
     }
 });
 
-app.get('/favorites/:userID', authenticateToken, async (req, res) => {
+app.get('/favorites/:userID', authenticateToken, requireSelf, async (req, res) => {
     const { userID } = req.params;
     try {
         const favorites = await Favorite.find({ userID });
@@ -598,7 +735,7 @@ app.get('/favorites/:userID', authenticateToken, async (req, res) => {
     }
 });
 
-app.post('/addToCart', authenticateToken, async (req, res) => {
+app.post('/addToCart', authenticateToken, requireSelf, async (req, res) => {
     const { userID, productID, productName, category, price, images, shopName, address } = req.body;
 
     if (!userID || !productID) {
@@ -618,25 +755,28 @@ app.post('/addToCart', authenticateToken, async (req, res) => {
         // Check if the product already exists in the cart
         const existingProductIndex = cart.products.findIndex(product => product.productID.toString() === productID);
 
+        // Save first, then answer: a failed save must not be reported as success.
         if (existingProductIndex !== -1) {
             // Product exists, remove it from the cart
             cart.products.splice(existingProductIndex, 1);
-            res.status(200).json({ message: 'Product removed from cart successfully!' });
-        } else {
-            // Product does not exist, add it to the cart
-            cart.products.push({ productID, productName, category, price, images, shopName, address });
-            res.status(201).json({ message: 'Product added to cart successfully!' });
+            await cart.save();
+            return res.status(200).json({ message: 'Product removed from cart successfully!' });
         }
 
-        // Save the updated cart
+        // Product does not exist, add it to the cart
+        cart.products.push({ productID, productName, category, price, images, shopName, address });
         await cart.save();
+        return res.status(201).json({ message: 'Product added to cart successfully!' });
     } catch (error) {
+        if (error.name === 'ValidationError' || error.name === 'CastError') {
+            return res.status(400).json({ error: 'Product details are incomplete or invalid.' });
+        }
         console.error('Error updating cart:', error);
         res.status(500).json({ error: 'Failed to update cart.' });
     }
 });
 
-app.post('/checkInCart', authenticateToken, async (req, res) => {
+app.post('/checkInCart', authenticateToken, requireSelf, async (req, res) => {
     const { userID, productID } = req.body;
 
     if (!userID || !productID) {
@@ -660,7 +800,7 @@ app.post('/checkInCart', authenticateToken, async (req, res) => {
     }
 });
 
-app.get('/cart/:userID', authenticateToken, async (req, res) => {
+app.get('/cart/:userID', authenticateToken, requireSelf, async (req, res) => {
     const { userID } = req.params;
 
     try {
@@ -693,7 +833,7 @@ app.get('/cart/:userID', authenticateToken, async (req, res) => {
     }
 });
 
-app.delete('/cart/:userID/remove/:productID', authenticateToken, async (req, res) => {
+app.delete('/cart/:userID/remove/:productID', authenticateToken, requireSelf, async (req, res) => {
     const { userID, productID } = req.params;
 
     try {
@@ -716,18 +856,23 @@ app.delete('/cart/:userID/remove/:productID', authenticateToken, async (req, res
 app.delete('/deleteProduct', authenticateToken, async (req, res) => {
     const { id } = req.body; // Get the ID from the request body
 
-    if (!id) {
+    if (!isValidId(id)) {
         return res.status(400).json({ message: 'Product ID is required' });
     }
 
     try {
-        // Find the product by ID and delete it
-        const deletedProduct = await Product.findByIdAndDelete(id);
-
-        // Check if the product was found and deleted
-        if (!deletedProduct) {
+        const product = await Product.findById(id);
+        if (!product) {
             return res.status(404).json({ message: 'Product not found' });
         }
+
+        // Only the shop owner or an admin may delete a product.
+        const access = await canManageShop(req, String(product.shopID));
+        if (!access.shop && !isAdmin(req)) {
+            return res.status(access.status).json({ message: access.message });
+        }
+
+        await Product.findByIdAndDelete(id);
 
         return res.status(200).json({ message: 'Product deleted successfully' });
     } catch (error) {
@@ -746,6 +891,11 @@ app.put('/updateShop', authenticateToken, (req, res) => {
 
         try {
             const { shopID, shopName, street, city, productCategories } = req.body;
+
+            const access = await canManageShop(req, shopID);
+            if (!access.shop) {
+                return res.status(access.status).json({ error: access.message });
+            }
             
             // Create update object
             const updateData = {
@@ -757,7 +907,7 @@ app.put('/updateShop', authenticateToken, (req, res) => {
 
             // If a new profile picture was uploaded, add it to the update
             if (req.file) {
-                updateData.profilePicture = req.file.path;
+                updateData.profilePicture = path.join('uploads', req.file.filename);
             }
 
             // Find and update the shop
@@ -789,10 +939,13 @@ app.put('/updateShop', authenticateToken, (req, res) => {
 // Add this endpoint to get shop details
 app.get('/shop/:shopID', authenticateToken, async (req, res) => {
     try {
+        if (!isValidId(req.params.shopID)) {
+            return res.status(400).json({ error: 'Shop ID is invalid' });
+        }
         const shop = await Shop.findById(req.params.shopID);
         
         if (!shop) {
-            return res.status(200).json({ error: 'Shop not found' });
+            return res.status(404).json({ error: 'Shop not found' });
         }
 
         res.status(200).json({ shop });
@@ -808,6 +961,9 @@ app.get('/shop/:shopID', authenticateToken, async (req, res) => {
 // Get user details
 app.get('/user/:userID', authenticateToken, async (req, res) => {
     try {
+        if (!isValidId(req.params.userID)) {
+            return res.status(400).json({ message: 'User ID is invalid' });
+        }
         const user = await eappmodel.findById(req.params.userID, '-password'); // Exclude password from response
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
@@ -820,7 +976,7 @@ app.get('/user/:userID', authenticateToken, async (req, res) => {
 });
 
 // Update user details (only name and phone number)
-app.put('/user/:userID', authenticateToken, async (req, res) => {
+app.put('/user/:userID', authenticateToken, requireSelf, async (req, res) => {
     try {
         const { name, phoneNumber } = req.body;
         
@@ -850,7 +1006,7 @@ app.put('/user/:userID', authenticateToken, async (req, res) => {
 });
 
 // Add this new endpoint for updating profile picture
-app.put('/user/:userID/profile-picture', authenticateToken, (req, res) => {
+app.put('/user/:userID/profile-picture', authenticateToken, requireSelf, (req, res) => {
   upload(req, res, async (err) => {
     if (err) {
       console.error('File upload error:', err);
@@ -876,12 +1032,12 @@ app.put('/user/:userID/profile-picture', authenticateToken, (req, res) => {
       }
 
       // Update user with new profile picture
-      user.profilePicture = req.file.path;
+      user.profilePicture = path.join('uploads', req.file.filename);
       await user.save();
 
       res.status(200).json({
         message: 'Profile picture updated successfully',
-        profilePicture: req.file.path
+        profilePicture: user.profilePicture
       });
     } catch (error) {
       console.error('Error updating profile picture:', error);
@@ -891,7 +1047,7 @@ app.put('/user/:userID/profile-picture', authenticateToken, (req, res) => {
 });
 
 // Get all users with pagination
-app.get('/users', authenticateToken, async (req, res) => {
+app.get('/users', authenticateToken, requireAdmin, async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
@@ -918,9 +1074,15 @@ app.get('/users', authenticateToken, async (req, res) => {
 });
 
 // Update user role
-app.put('/users/:userID/role', authenticateToken, async (req, res) => {
+app.put('/users/:userID/role', authenticateToken, requireAdmin, async (req, res) => {
     try {
-        const { role } = req.body;
+        const role = String(req.body && req.body.role);
+        if (![ROLE_USER, ROLE_SELLER, ROLE_ADMIN].includes(role)) {
+            return res.status(400).json({ message: 'Role must be 1 (user), 2 (seller) or 3 (admin)' });
+        }
+        if (!isValidId(req.params.userID)) {
+            return res.status(400).json({ message: 'User ID is invalid' });
+        }
         const updatedUser = await eappmodel.findByIdAndUpdate(
             req.params.userID,
             { role },
@@ -942,7 +1104,7 @@ app.put('/users/:userID/role', authenticateToken, async (req, res) => {
 });
 
 // Delete user
-app.delete('/users/:userID', authenticateToken, async (req, res) => {
+app.delete('/users/:userID', authenticateToken, requireAdmin, async (req, res) => {
     try {
         const deletedUser = await eappmodel.findByIdAndDelete(req.params.userID);
         
@@ -960,7 +1122,7 @@ app.delete('/users/:userID', authenticateToken, async (req, res) => {
 });
 
 // Get all orders
-app.get('/orders', authenticateToken, async (req, res) => {
+app.get('/orders', authenticateToken, requireAdmin, async (req, res) => {
     try {
         const orders = await Order.find().sort({ createdAt: -1 });
         res.status(200).json(orders);
@@ -971,9 +1133,15 @@ app.get('/orders', authenticateToken, async (req, res) => {
 });
 
 // Update order status
-app.put('/orders/:orderId/status', authenticateToken, async (req, res) => {
+app.put('/orders/:orderId/status', authenticateToken, requireAdmin, async (req, res) => {
     try {
         const { status } = req.body;
+        if (!['Pending', 'In Progress', 'Delivered'].includes(status)) {
+            return res.status(400).json({ message: 'Status must be Pending, In Progress or Delivered' });
+        }
+        if (!isValidId(req.params.orderId)) {
+            return res.status(400).json({ message: 'Order ID is invalid' });
+        }
         const updatedOrder = await Order.findByIdAndUpdate(
             req.params.orderId,
             { status },
@@ -995,7 +1163,7 @@ app.put('/orders/:orderId/status', authenticateToken, async (req, res) => {
 });
 
 // Get all shops
-app.get('/shops', authenticateToken, async (req, res) => {
+app.get('/shops', authenticateToken, requireAdmin, async (req, res) => {
     try {
         const shops = await Shop.find().sort({ createdAt: -1 });
         res.status(200).json(shops);
@@ -1009,12 +1177,24 @@ app.get('/shops', authenticateToken, async (req, res) => {
 app.put('/updateProduct', authenticateToken, (req, res) => {
     muiltFiles(req, res, async (err) => {
         if (err) {
-            return res.status(400).json({ error: err });
+            return res.status(400).json({ error: err.message || err });
         }
 
         try {
             const { productID, existingImages } = req.body;
             const updateData = {};
+
+            if (!isValidId(productID)) {
+                return res.status(400).json({ error: 'Product ID is required' });
+            }
+            const existingProduct = await Product.findById(productID);
+            if (!existingProduct) {
+                return res.status(404).json({ error: 'Product not found' });
+            }
+            const access = await canManageShop(req, String(existingProduct.shopID));
+            if (!access.shop && !isAdmin(req)) {
+                return res.status(access.status).json({ error: access.message });
+            }
 
             // Update basic product information if provided
             if (req.body.productName) updateData.productName = req.body.productName;
@@ -1074,11 +1254,17 @@ app.put('/updateProduct', authenticateToken, (req, res) => {
 // Delete a favorite item
 app.delete('/favorites/:favoriteId', authenticateToken, async (req, res) => {
     try {
-        const deletedFavorite = await Favorite.findByIdAndDelete(req.params.favoriteId);
-        
-        if (!deletedFavorite) {
+        if (!isValidId(req.params.favoriteId)) {
+            return res.status(400).json({ message: 'Favorite ID is invalid' });
+        }
+        const favorite = await Favorite.findById(req.params.favoriteId);
+        if (!favorite) {
             return res.status(404).json({ message: 'Favorite item not found' });
         }
+        if (String(favorite.userID) !== String(req.user.id) && !isAdmin(req)) {
+            return res.status(403).json({ message: 'You can only remove your own favorites' });
+        }
+        const deletedFavorite = await Favorite.findByIdAndDelete(req.params.favoriteId);
 
         res.status(200).json({ 
             message: 'Favorite item removed successfully',
@@ -1090,6 +1276,43 @@ app.delete('/favorites/:favoriteId', authenticateToken, async (req, res) => {
     }
 });
 
-app.listen(3001, () => {
-    console.log('Server is running on port 3001');
+// Unknown routes and malformed request bodies answer in JSON, not HTML stack traces.
+app.use((req, res) => {
+    res.status(404).json({ message: 'Route not found' });
 });
+
+app.use((err, req, res, next) => {
+    if (err.type === 'entity.parse.failed') {
+        return res.status(400).json({ message: 'Request body is not valid JSON' });
+    }
+    console.error('Unhandled error:', err);
+    res.status(500).json({ message: 'Server error occurred' });
+});
+
+async function start() {
+    const mongoUri = process.env.MONGO_URI;
+    if (!mongoUri) {
+        console.error('MONGO_URI is not set. Copy server/.env.example to server/.env and fill it in.');
+        process.exit(1);
+    }
+
+    try {
+        await mongoose.connect(mongoUri);
+        console.log("Connected to MongoDB");
+    } catch (err) {
+        console.error("MongoDB connection error:", err.message);
+        process.exit(1);
+    }
+
+    const port = Number(process.env.PORT) || 3001;
+    app.listen(port, () => {
+        console.log(`Server is running on port ${port}`);
+    });
+}
+
+// Tests import the app without opening a database connection or a port.
+if (require.main === module) {
+    start();
+}
+
+module.exports = app;
